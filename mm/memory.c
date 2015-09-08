@@ -1495,12 +1495,10 @@ static bool __need_migrate_cma_page(struct page *page,
 					VM_STACK_INCOMPLETE_SETUP)
 		return false;
 
-	if (!PageLRU(page)) {
-		migrate_prep_local();
-		if (WARN_ON(!PageLRU(page))) {
-			return false;
-		}
-	}
+	migrate_prep_local();
+
+	if (!PageLRU(page))
+		return false;
 
 	return true;
 }
@@ -1874,10 +1872,6 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 	 */
 	if (!(gup_flags & FOLL_FORCE))
 		gup_flags |= FOLL_NUMA;
-
-
-	if ((gup_flags & FOLL_CMA) != 0)
-		migrate_prep();
 
 	i = 0;
 
@@ -3839,12 +3833,12 @@ int handle_pte_fault(struct mm_struct *mm,
 	entry = *pte;
 	if (!pte_present(entry)) {
 		if (pte_none(entry)) {
-			if (vma->vm_ops)
-				return do_linear_fault(mm, vma, address, pte, pmd,
-						flags, entry);
-
-			return do_anonymous_page(mm, vma, address, pte, pmd,
-					flags);
+			if (vma_is_anonymous(vma))
+				return do_anonymous_page(mm, vma, address,
+							 pte, pmd, flags);
+			else
+				return do_linear_fault(mm, vma, address,
+						pte, pmd, flags, entry);
 		}
 		if (pte_file(entry))
 			return do_nonlinear_fault(mm, vma, address,
