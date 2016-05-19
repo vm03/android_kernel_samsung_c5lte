@@ -603,8 +603,8 @@ struct ieee80211_regdomain *vos_world_regdomain(struct regulatory *reg)
  */
 void vos_reset_global_reg_params()
 {
-     init_by_driver = false;
-     init_by_reg_core = false;
+	init_by_driver = false;
+	init_by_reg_core = false;
 }
 
 static int regd_init_wiphy(hdd_context_t *pHddCtx, struct regulatory *reg,
@@ -943,8 +943,6 @@ eNVChannelEnabledType vos_nv_getChannelEnabledState
 /******************************************************************
  Add CRDA regulatory support
 *******************************************************************/
-
-
 
 /**------------------------------------------------------------------------
   \brief vos_nv_setRegDomain -
@@ -1368,6 +1366,7 @@ static int create_linux_regulatory_entry(struct wiphy *wiphy,
                 if (n != INVALID_RF_CHANNEL)
                     pnvEFSTable->halnv.tables.regDomains[temp_reg_domain].channels[n].enabled =
                         NV_CHANNEL_DISABLE;
+
                 n = (k > RF_CHAN_165)? INVALID_RF_CHANNEL :
                                        chan_to_ht_40_index[k].ht_40_minus_index;
                 if (n != INVALID_RF_CHANNEL)
@@ -1398,7 +1397,7 @@ static int create_linux_regulatory_entry(struct wiphy *wiphy,
                  */
                 if ((wiphy->bands[i]->channels[j].flags &
                         IEEE80211_CHAN_NO_HT40) == IEEE80211_CHAN_NO_HT40)
-                    {
+                {
                     n = (k > RF_CHAN_165)? INVALID_RF_CHANNEL :
                                         chan_to_ht_40_index[k].ht_40_plus_index;
                     if (n != INVALID_RF_CHANNEL)
@@ -1464,7 +1463,7 @@ static int create_linux_regulatory_entry(struct wiphy *wiphy,
                  */
                 if ((wiphy->bands[i]->channels[j].flags &
                              IEEE80211_CHAN_NO_HT40) == IEEE80211_CHAN_NO_HT40)
-                    {
+                {
                     n = (k > RF_CHAN_165)? INVALID_RF_CHANNEL :
                                         chan_to_ht_40_index[k].ht_40_plus_index;
                     if (n != INVALID_RF_CHANNEL)

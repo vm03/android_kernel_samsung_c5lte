@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -302,6 +302,7 @@ pktlog_init(struct ol_softc *scn)
 	PKTLOG_RCUPDATE_SUBSCRIBER.callback = pktlog_callback;
 }
 
+
 static int
 __pktlog_enable(struct ol_softc *scn, int32_t log_state)
 {
@@ -349,6 +350,7 @@ __pktlog_enable(struct ol_softc *scn, int32_t log_state)
 				return -1;
 			}
 		}
+
 		spin_lock_bh(&pl_info->log_lock);
 		pl_info->buf->bufhdr.version = CUR_PKTLOG_VER;
 		pl_info->buf->bufhdr.magic_num = PKTLOG_MAGIC_NUM;
@@ -389,6 +391,9 @@ __pktlog_enable(struct ol_softc *scn, int32_t log_state)
 	return 0;
 }
 
+#define ONE_MEGABYTE (1024 * 1024)
+#define MAX_ALLOWED_PKTLOG_SIZE (16 * ONE_MEGABYTE)
+
 int pktlog_enable(struct ol_softc *scn, int32_t log_state)
 {
 	struct ol_pktlog_dev_t *pl_dev;
@@ -419,15 +424,12 @@ int pktlog_enable(struct ol_softc *scn, int32_t log_state)
 	return error;
 }
 
-#define ONE_MEGABYTE (1024 * 1024)
-#define MAX_ALLOWED_PKTLOG_SIZE (16 * ONE_MEGABYTE)
 
 static int
 __pktlog_setsize(struct ol_softc *scn, int32_t size)
 {
 	struct ol_pktlog_dev_t *pl_dev = scn->pdev_txrx_handle->pl_dev;
 	struct ath_pktlog_info *pl_info = pl_dev->pl_info;
-
 
 	if (size < ONE_MEGABYTE || size > MAX_ALLOWED_PKTLOG_SIZE) {
 		printk("%s: Cannot Set Pktlog Buffer size of %d bytes."
@@ -444,6 +446,7 @@ __pktlog_setsize(struct ol_softc *scn, int32_t size)
 		printk("Logging should be disabled before changing bufer size\n");
 		return -EINVAL;
 	}
+
 	spin_lock_bh(&pl_info->log_lock);
 	if (pl_info->buf != NULL)
 		pktlog_release_buf(scn);
@@ -451,7 +454,7 @@ __pktlog_setsize(struct ol_softc *scn, int32_t size)
 	if (size != 0)
 		pl_info->buf_size = size;
 	spin_unlock_bh(&pl_info->log_lock);
-	
+
 	return 0;
 }
 int

@@ -877,8 +877,8 @@ void
 ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev, int force)
 {
     int i = 0;
+    struct ol_txrx_stats_req_internal *req;
     unsigned int page_idx;
-	struct ol_txrx_stats_req_internal *req;
 
     /*checking to ensure txrx pdev structure is not NULL */
     if (!pdev) {
@@ -890,6 +890,7 @@ ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev, int force)
 
     /* check that the pdev has no vdevs allocated */
     TXRX_ASSERT1(TAILQ_EMPTY(&pdev->vdev_list));
+
     adf_os_spin_lock_bh(&pdev->req_list_spinlock);
     if (pdev->req_list_depth > 0)
         TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
@@ -913,6 +914,7 @@ ol_txrx_pdev_detach(ol_txrx_pdev_handle pdev, int force)
     adf_os_spin_unlock_bh(&pdev->req_list_spinlock);
 
     adf_os_spinlock_destroy(&pdev->req_list_spinlock);
+
     OL_RX_REORDER_TIMEOUT_CLEANUP(pdev);
 
     if (ol_cfg_is_high_latency(pdev->ctrl_pdev)) {

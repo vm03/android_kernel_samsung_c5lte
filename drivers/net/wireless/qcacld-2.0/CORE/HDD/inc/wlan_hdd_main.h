@@ -1148,8 +1148,10 @@ struct hdd_adapter_s
     /* Time stamp for start RoC request */
     v_TIME_t startRocTs;
 
-    struct sir_ocb_get_tsf_timer_response ocb_get_tsf_timer_resp;
-    struct sir_dcc_get_stats_response *dcc_get_stats_resp;
+	/* State for synchronous OCB requests to WMI */
+	struct sir_ocb_set_config_response ocb_set_config_resp;
+	struct sir_ocb_get_tsf_timer_response ocb_get_tsf_timer_resp;
+	struct sir_dcc_get_stats_response *dcc_get_stats_resp;
 	struct sir_dcc_update_ndl_response dcc_update_ndl_resp;
 
 	/* MAC addresses used for OCB interfaces */
@@ -1662,6 +1664,15 @@ struct hdd_context_s
     struct hdd_ll_stats_context ll_stats_context;
 #endif /* End of WLAN_FEATURE_LINK_LAYER_STATS */
 
+#ifdef WLAN_FEATURE_MEMDUMP
+    uint8_t *fw_dump_loc;
+    uint32_t dump_loc_paddr;
+    vos_timer_t memdump_cleanup_timer;
+    struct mutex memdump_lock;
+    bool memdump_in_progress;
+    bool memdump_init_done;
+#endif /* WLAN_FEATURE_MEMDUMP */
+
     /* number of rf chains supported by target */
     uint32_t  num_rf_chains;
 
@@ -1887,11 +1898,6 @@ void wlan_hdd_cfg80211_link_layer_stats_init(hdd_context_t *pHddCtx);
 
 void hdd_update_macaddr(hdd_config_t *cfg_ini, v_MACADDR_t hw_macaddr);
 
-/* Samsung specific code */
-#ifdef SEC_WRITE_VERSION_IN_FILE
-int wlan_hdd_sec_write_version_file (char *swversion);
-#endif /* SEC_WRITE_VERSION_IN_FILE */
-
 #if defined(FEATURE_WLAN_LFR) && defined(WLAN_FEATURE_ROAM_SCAN_OFFLOAD)
 void wlan_hdd_disable_roaming(hdd_adapter_t *pAdapter);
 void wlan_hdd_enable_roaming(hdd_adapter_t *pAdapter);
@@ -1951,6 +1957,8 @@ static inline void hdd_init_ll_stats_ctx(hdd_context_t *hdd_ctx)
 void hdd_get_fw_version(hdd_context_t *hdd_ctx,
 			uint32_t *major_spid, uint32_t *minor_spid,
 			uint32_t *siid, uint32_t *crmid);
+
+bool hdd_is_memdump_supported(void);
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28))
 static inline void

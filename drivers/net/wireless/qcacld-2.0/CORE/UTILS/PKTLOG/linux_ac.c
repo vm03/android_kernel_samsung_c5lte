@@ -121,7 +121,7 @@ int pktlog_alloc_buf(struct ol_softc *scn)
 	struct page *vpg;
 	struct ath_pktlog_info *pl_info;
 	struct ath_pktlog_buf *buffer;
-	
+
 	if (!scn || !scn->pdev_txrx_handle->pl_dev) {
 		printk(PKTLOG_TAG
 		       "%s: Unable to allocate buffer "
@@ -149,6 +149,7 @@ int pktlog_alloc_buf(struct ol_softc *scn)
 		return -ENOMEM;
 	}
 
+
 	buffer = (struct ath_pktlog_buf *)
 			(((unsigned long) (buffer) + PAGE_SIZE - 1)
 			& PAGE_MASK);
@@ -163,7 +164,7 @@ int pktlog_alloc_buf(struct ol_softc *scn)
 #endif
 		SetPageReserved(vpg);
 	}
-	
+
 	spin_lock_bh(&pl_info->log_lock);
 	if(pl_info->buf != NULL)
 		pktlog_release_buf(scn);
@@ -564,7 +565,6 @@ static void pktlog_detach(struct ol_softc *scn)
 	pktlog_sysctl_unregister(pl_dev);
 
 	spin_lock_bh(&pl_info->log_lock);
-
 	if (pl_info->buf)
 		pktlog_release_buf(scn);
 	spin_unlock_bh(&pl_info->log_lock);
@@ -1015,7 +1015,7 @@ rd_done:
 		pl_info->saved_state = 0;
 	}
 	*ppos += ret_val;
-	
+
 	spin_unlock_bh(&pl_info->log_lock);
 	return ret_val;
 }
@@ -1035,7 +1035,6 @@ pktlog_read(struct file *file, char *buf, size_t nbytes, loff_t *ppos)
 	mutex_lock(&pl_info->pktlog_mutex);
 	ret_val = __pktlog_read(file, buf, nbytes, ppos);
 	mutex_unlock(&pl_info->pktlog_mutex);
-
 	return ret_val;
 }
 

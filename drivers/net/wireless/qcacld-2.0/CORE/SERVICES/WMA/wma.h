@@ -105,7 +105,7 @@
 #define WMA_MAX_VDEV_SIZE				20
 #define WMA_VDEV_TBL_ENTRY_ADD				1
 #define WMA_VDEV_TBL_ENTRY_DEL				0
-
+#define WMA_SVC_MSG_MAX_SIZE                            1536
 
 /* 11A/G channel boundary */
 #define WMA_11A_CHANNEL_BEGIN           34
@@ -558,7 +558,6 @@ struct wma_txrx_node {
 #if defined WLAN_FEATURE_VOWIFI_11R
         void    *staKeyParams;
 #endif
-	v_BOOL_t ps_enabled;
 	u_int32_t dtim_policy;
 	u_int32_t peer_count;
 	v_BOOL_t roam_synch_in_progress;
@@ -853,6 +852,7 @@ typedef struct wma_handle {
 
 	struct wma_runtime_pm_context runtime_context;
 	bool     pause_other_vdev_on_mcc_start;
+	tSirAddonPsReq psSetting;
 }t_wma_handle, *tp_wma_handle;
 
 struct wma_target_cap {

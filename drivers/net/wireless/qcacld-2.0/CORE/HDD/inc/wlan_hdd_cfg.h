@@ -3369,6 +3369,15 @@ enum dot11p_mode {
 #define CFG_FINE_TIME_MEAS_CAPABILITY_DEFAULT      (0x000D)
 
 #ifdef FEATURE_WLAN_EXTSCAN
+/*
+ * This ini is added to control the enabling of extscan feature outside of code
+ * To enable , gExtScanEnable=1 need to be declared in ini file.
+ * Otherwise, Extscan feature will remain disabled.
+ */
+#define CFG_EXTSCAN_ALLOWED_NAME                   "gExtScanEnable"
+#define CFG_EXTSCAN_ALLOWED_MIN                    (0)
+#define CFG_EXTSCAN_ALLOWED_MAX                    (1)
+#define CFG_EXTSCAN_ALLOWED_DEF                    (0)
 
 #define CFG_EXTSCAN_PASSIVE_MAX_CHANNEL_TIME_NAME      "gExtScanPassiveMaxChannelTime"
 #define CFG_EXTSCAN_PASSIVE_MAX_CHANNEL_TIME_MIN       (0)

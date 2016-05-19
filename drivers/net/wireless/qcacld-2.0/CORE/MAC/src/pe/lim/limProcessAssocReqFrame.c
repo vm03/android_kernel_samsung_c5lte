@@ -711,7 +711,7 @@ limProcessAssocReqFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,
                 if(pAssocReq->rsn.length)
                 {
                     // Unpack the RSN IE
-                    if( dot11fUnpackIeRSN(pMac,
+                    if (dot11fUnpackIeRSN(pMac,
                                         &pAssocReq->rsn.info[0],
                                         pAssocReq->rsn.length,
                                         &Dot11fIERSN) != DOT11F_PARSE_SUCCESS)
@@ -788,9 +788,9 @@ limProcessAssocReqFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,
                 // Unpack the WPA IE
                 if(pAssocReq->wpa.length)
                 {
-                    if (dot11fUnpackIeWPA(pMac, 
+                    if (dot11fUnpackIeWPA(pMac,
                                         &pAssocReq->wpa.info[4], //OUI is not taken care
-                                        pAssocReq->wpa.length, 
+                                        pAssocReq->wpa.length,
                                         &Dot11fIEWPA) != DOT11F_PARSE_SUCCESS)
                     {
                         limLog(pMac, LOGE, FL("Invalid WPA IE"));

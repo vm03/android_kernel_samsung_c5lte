@@ -581,7 +581,6 @@ A_STATUS HTCWaitRecvCtrlMessage(HTC_TARGET *target)
 {
 //    int count = HTC_TARGET_MAX_RESPONSE_POLL;
 
-//   HTC_INIT_INFO   *initInfo = &target->HTCInitInfo;
     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("+HTCWaitCtrlMessageRecv\n"));
 
     adf_os_re_init_completion(target->CtrlResponseValid);

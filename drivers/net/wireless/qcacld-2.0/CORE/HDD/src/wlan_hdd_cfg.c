@@ -4184,6 +4184,12 @@ REG_TABLE_ENTRY g_registry_table[] =
                 CFG_SELF_GEN_FRM_PWR_MAX),
 
 #ifdef FEATURE_WLAN_EXTSCAN
+   REG_VARIABLE(CFG_EXTSCAN_ALLOWED_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, extscan_enabled,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_EXTSCAN_ALLOWED_DEF,
+                 CFG_EXTSCAN_ALLOWED_MIN,
+                 CFG_EXTSCAN_ALLOWED_MAX ),
 
    REG_VARIABLE(CFG_EXTSCAN_PASSIVE_MAX_CHANNEL_TIME_NAME, WLAN_PARAM_Integer,
                  hdd_config_t, extscan_passive_max_chn_time,
@@ -4436,7 +4442,7 @@ typedef struct
 }tCfgIniEntry;
 
 #ifdef SEC_CONFIG_GRIP_POWER
-#define SEC_GRIPPOWER_FILEPATH	"/etc/firmware/wlan/qca_cld/grippower.info"
+#define SEC_GRIPPOWER_FILEPATH	"/vendor/firmware/wlan/qca_cld/grippower.info"
 bool wlan_hdd_sec_get_grip_power(unsigned int *grip_power_2g, unsigned int *grip_power_5g)
 {
     struct file *fp    = NULL;
@@ -5069,6 +5075,7 @@ void print_hdd_cfg(hdd_context_t *pHddCtx)
   hddLog(LOG2, "Name = [%s] Value = [%u] ",
                  CFG_TDLS_ENABLE_DEFER_TIMER,
                  pHddCtx->cfg_ini->tdls_enable_defer_time);
+
   hddLog(LOG2, "Name = [%s] Value = [%u]",
                  CFG_ARP_AC_CATEGORY,
                  pHddCtx->cfg_ini->arp_ac_category);

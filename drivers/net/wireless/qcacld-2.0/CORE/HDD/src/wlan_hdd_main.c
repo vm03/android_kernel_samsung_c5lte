@@ -133,7 +133,6 @@ void hdd_ch_avoid_cb(void *hdd_context,void *indi_param);
 #include "ol_fw.h"
 #include "wlan_hdd_ocb.h"
 #include "wlan_hdd_tsf.h"
-#include "wlan_hdd_ocb.h"
 
 #if defined(LINUX_QCMBR)
 #define SIOCIOCTLTX99 (SIOCDEVPRIVATE+13)
@@ -1405,7 +1404,7 @@ static int hdd_parse_setrmcrate_command(tANI_U8 *pValue,
         return 0;
     }
 
-    sscanf(inPtr, "%32s ", buf);
+    sscanf(inPtr, "%31s ", buf);
     v = kstrtos32(buf, 10, &tempInt);
     if ( v < 0)
     {
@@ -4575,7 +4574,7 @@ static int hdd_set_rx_filter(hdd_adapter_t *adapter, bool action,
 			uint8_t pattern)
 {
 	int ret;
-	uint8_t i;
+	uint8_t i, j;
 	tHalHandle handle;
 	tSirRcvFltMcAddrList *filter;
 	hdd_context_t* hdd_ctx = WLAN_HDD_GET_CTX(adapter);
@@ -4614,19 +4613,22 @@ static int hdd_set_rx_filter(hdd_adapter_t *adapter, bool action,
 		}
 		vos_mem_zero(filter, sizeof(*filter));
 		filter->action = action;
-		for (i = 0; i < adapter->mc_addr_list.mc_cnt; i++) {
+		for (i = 0, j = 0; i < adapter->mc_addr_list.mc_cnt; i++) {
 			if (!memcmp(adapter->mc_addr_list.addr[i],
 				&pattern, 1)) {
-				memcpy(filter->multicastAddr[i],
+				memcpy(filter->multicastAddr[j],
 					adapter->mc_addr_list.addr[i],
 					sizeof(adapter->mc_addr_list.addr[i]));
-				filter->ulMulticastAddrCnt++;
 				hddLog(LOG1, "%s RX filter : addr ="
 				    MAC_ADDRESS_STR,
 				    action ? "setting" : "clearing",
-				    MAC_ADDR_ARRAY(filter->multicastAddr[i]));
+				    MAC_ADDR_ARRAY(filter->multicastAddr[j]));
+				j++;
 			}
+			if (j == SIR_MAX_NUM_MULTICAST_ADDRESS)
+				break;
 		}
+		filter->ulMulticastAddrCnt = j;
 		/* Set rx filter */
 		sme_8023MulticastList(handle, adapter->sessionId, filter);
 		vos_mem_free(filter);
@@ -11256,9 +11258,9 @@ hdd_adapter_t* hdd_open_adapter( hdd_context_t *pHddCtx, tANI_U8 session_type,
    return pAdapter;
 
 err_free_netdev:
+   free_netdev(pAdapter->dev);
    wlan_hdd_release_intf_addr( pHddCtx,
                                pAdapter->macAddressCurrent.bytes );
-   free_netdev(pAdapter->dev);
 
 resume_bmps:
    //If bmps disabled enable it
@@ -13161,6 +13163,7 @@ void __hdd_wlan_exit(void)
 #endif
 
    //Do all the cleanup before deregistering the driver
+   memdump_deinit();
    hdd_wlan_exit(pHddCtx);
 #ifdef SEC_READ_MACADDR
    sec_mac_loaded = 0;
@@ -13368,40 +13371,6 @@ void wlan_hdd_netdev_notifiers_cleanup(hdd_context_t * hdd_ctx)
 	unregister_netdevice_notifier(&hdd_netdev_notifier);
 }
 
-// write version info in /data/.wifiver.info
-#ifdef SEC_WRITE_VERSION_IN_FILE
-#include "qwlan_version.h"
-
-#define SEC_VERSION_FILEPATH	"/data/misc/conn/.wifiver.info"
-
-int wlan_hdd_sec_write_version_file(char *swversion)
-{
-	int ret = 0;
-	struct file *fp = NULL;
-	char strbuffer[128]   = {0};
-	mm_segment_t oldfs   = {0};
-
-	oldfs = get_fs();
-	set_fs(get_ds());
-
-	fp = filp_open(SEC_VERSION_FILEPATH, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR|S_IWUSR);
-	if (IS_ERR(fp)) {
-		printk("%s: can't create file : %s\n",__func__,SEC_VERSION_FILEPATH);
-	} else {
-		if (fp->f_mode & FMODE_WRITE) {
-			snprintf(strbuffer,sizeof(strbuffer),"%s\n", swversion);
-			if (vfs_write(fp, strbuffer, strlen(strbuffer), &fp->f_pos) < 0)
-				printk("%s: can't write file : %s",__func__,SEC_VERSION_FILEPATH);
-			else
-				ret = 1;
-		}
-	}
-	if (fp && (!IS_ERR(fp)))
-		filp_close(fp, NULL);
-	set_fs(oldfs);
-	return ret;
-}
-#endif /* SEC_WRITE_VERSION_IN_FILE */
 /**---------------------------------------------------------------------------
 
   \brief hdd_exchange_version_and_caps() - HDD function to exchange version and capability
@@ -14541,7 +14510,7 @@ int hdd_wlan_startup(struct device *dev, v_VOID_t *hif_sc)
    ret = process_wma_set_command(0, WMI_PDEV_PARAM_ARP_AC_OVERRIDE,
                                  pHddCtx->cfg_ini->arp_ac_category, PDEV_CMD);
    if (0 != ret) {
-       hddLog(VOS_TRACE_LEVEL_ERROR,
+       hddLog(LOGE,
               "%s: WMI_PDEV_PARAM_ARP_AC_OVERRIDE failed AC: %d ret: %d",
               __func__, pHddCtx->cfg_ini->arp_ac_category, ret);
    }
@@ -14684,6 +14653,7 @@ int hdd_wlan_startup(struct device *dev, v_VOID_t *hif_sc)
       vos_set_load_in_progress(VOS_MODULE_ID_VOSS, FALSE);
       pHddCtx->isLoadInProgress = FALSE;
 
+      memdump_init();
       hddLog(LOGE, FL("FTM driver loaded"));
       wlan_comp.status = 0;
       complete(&wlan_comp.wlan_start_comp);
@@ -15138,6 +15108,7 @@ int hdd_wlan_startup(struct device *dev, v_VOID_t *hif_sc)
    pHddCtx->isLoadInProgress = FALSE;
    vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, FALSE);
    vos_set_load_in_progress(VOS_MODULE_ID_VOSS, FALSE);
+   memdump_init();
    wlan_comp.status = 0;
    complete(&wlan_comp.wlan_start_comp);
    goto success;
@@ -15705,7 +15676,6 @@ void hdd_set_conparam ( v_UINT_t newParam )
   curr_con_mode = con_mode;
 #endif
 }
-
 /**---------------------------------------------------------------------------
 
   \brief hdd_softap_sta_deauth() - function
@@ -17484,6 +17454,22 @@ void hdd_get_fw_version(hdd_context_t *hdd_ctx,
 	*minor_spid = (hdd_ctx->target_fw_version & 0xf000000) >> 24;
 	*siid = (hdd_ctx->target_fw_version & 0xf00000) >> 20;
 	*crmid = hdd_ctx->target_fw_version & 0x7fff;
+}
+
+/**
+ * hdd_is_memdump_supported() - to check if memdump feature support
+ *
+ * This function is used to check if memdump feature is supported in
+ * the host driver
+ *
+ * Return: true if supported and false otherwise
+ */
+bool hdd_is_memdump_supported(void)
+{
+#ifdef WLAN_FEATURE_MEMDUMP
+	return true;
+#endif
+	return false;
 }
 
 #ifdef QCA_CONFIG_SMP
