@@ -1,0 +1,4 @@
+#!/bin/bash
+
+make VARIANT_DEFCONFIG=msm8952_sec_c5lte_chn_defconfig msm8952_sec_defconfig SELINUX_DEFCONFIG=selinux_defconfig
+make
