@@ -690,13 +690,13 @@ limCleanupRxPath(tpAniSirGlobal pMac, tpDphHashNode pStaDs,tpPESession psessionE
              * There is no context at Polaris to delete.
              * Release our assigned AID back to the free pool
              */
-            if ((psessionEntry->limSystemRole == eLIM_AP_ROLE) ||
+            if ((psessionEntry->limSystemRole == eLIM_AP_ROLE) || 
                 (psessionEntry->limSystemRole == eLIM_BT_AMP_AP_ROLE))
-            {
-                limDelSta(pMac, pStaDs, false, psessionEntry);
+            {    
                 limReleasePeerIdx(pMac, pStaDs->assocId, psessionEntry);
             }
             limDeleteDphHashEntry(pMac, pStaDs->staAddr, pStaDs->assocId,psessionEntry);
+
             return retCode;
         }
     }
@@ -743,15 +743,12 @@ limCleanupRxPath(tpAniSirGlobal pMac, tpDphHashNode pStaDs,tpPESession psessionE
     pMac->lim.gLimNumRxCleanup++;
 #endif
 
-    /* Do DEL BSS or DEL STA only if ADD BSS was success */
-    if (!psessionEntry->addBssfailed)
-    {
-        if (psessionEntry->limSmeState == eLIM_SME_JOIN_FAILURE_STATE)
-           retCode = limDelBss( pMac, pStaDs,
-                          psessionEntry->bssIdx, psessionEntry);
-        else
-           retCode = limDelSta( pMac, pStaDs, true, psessionEntry);
+    if (psessionEntry->limSmeState == eLIM_SME_JOIN_FAILURE_STATE) {
+        retCode = limDelBss( pMac, pStaDs, psessionEntry->bssIdx, psessionEntry);
     }
+    else
+        retCode = limDelSta( pMac, pStaDs, true, psessionEntry);
+
     return retCode;
 
 } /*** end limCleanupRxPath() ***/
@@ -823,14 +820,15 @@ limSendDelStaCnf(tpAniSirGlobal pMac, tSirMacAddr staDsAddr,
 
         psessionEntry->limAID = 0;
 
+
     }
 
     if ((mlmStaContext.cleanupTrigger ==
                                       eLIM_HOST_DISASSOC) ||
         (mlmStaContext.cleanupTrigger ==
-                                      eLIM_PROMISCUOUS_MODE_DISASSOC) ||
+                                      eLIM_LINK_MONITORING_DISASSOC) ||
         (mlmStaContext.cleanupTrigger ==
-                                      eLIM_LINK_MONITORING_DISASSOC))
+                                      eLIM_PROMISCUOUS_MODE_DISASSOC))
     {
         /**
          * Host or LMM driven Disassociation.
@@ -844,7 +842,6 @@ limSendDelStaCnf(tpAniSirGlobal pMac, tSirMacAddr staDsAddr,
                      (tANI_U8 *) staDsAddr,
                       sizeof(tSirMacAddr));
         mlmDisassocCnf.resultCode = statusCode;
-        mlmDisassocCnf.aid          = staDsAssocId;
         mlmDisassocCnf.disassocTrigger =
                                    mlmStaContext.cleanupTrigger;
         /* Update PE session Id*/
@@ -854,8 +851,10 @@ limSendDelStaCnf(tpAniSirGlobal pMac, tSirMacAddr staDsAddr,
                           LIM_MLM_DISASSOC_CNF,
                           (tANI_U32 *) &mlmDisassocCnf);
     }
-    else if ((mlmStaContext.cleanupTrigger == eLIM_HOST_DEAUTH) ||
-             (mlmStaContext.cleanupTrigger == eLIM_LINK_MONITORING_DEAUTH))
+    else if ((mlmStaContext.cleanupTrigger ==
+                                           eLIM_HOST_DEAUTH) ||
+             (mlmStaContext.cleanupTrigger ==
+                                           eLIM_LINK_MONITORING_DEAUTH))
     {
         /**
          * Host or LMM driven Deauthentication.
@@ -867,7 +866,6 @@ limSendDelStaCnf(tpAniSirGlobal pMac, tSirMacAddr staDsAddr,
                      (tANI_U8 *) staDsAddr,
                       sizeof(tSirMacAddr));
         mlmDeauthCnf.resultCode    = statusCode;
-        mlmDeauthCnf.aid           = staDsAssocId;
         mlmDeauthCnf.deauthTrigger =
                                    mlmStaContext.cleanupTrigger;
         /* PE session Id */
@@ -4028,7 +4026,7 @@ tSirRetStatus limStaSendAddBssPreAssoc( tpAniSirGlobal pMac, tANI_U8 updateEntry
 
     limExtractApCapabilities( pMac,
                             (tANI_U8 *) bssDescription->ieFields,
-                            GET_IE_LEN_IN_BSS(bssDescription->length),
+                            limGetIElenFromBssDescription( bssDescription ),
                             pBeaconStruct );
 
     if(pMac->lim.gLimProtectionControl != WNI_CFG_FORCE_POLICY_PROTECTION_DISABLE)
