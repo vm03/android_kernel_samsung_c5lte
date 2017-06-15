@@ -99,7 +99,7 @@ static int buffer_req(struct msm_dma_alloc_req *req)
 	if (i >= MAX_TEST_BUFFERS)
 		goto error;
 
-	buffers[i] = kzalloc(req->size, GFP_KERNEL | __GFP_DMA);
+	buffers[i] = kmalloc(req->size, GFP_KERNEL | __GFP_DMA);
 	if (buffers[i] == 0)
 		goto error;
 	sizes[i] = req->size;
@@ -176,7 +176,7 @@ static int dma_test_open(struct inode *inode, struct file *file)
 	 * waste 32 bytes for each. */
 
 	/* Allocate the command pointer. */
-	priv->command_ptr = kmalloc(sizeof(&priv->command_ptr),
+	priv->command_ptr = kmalloc(sizeof(dmov_s),
 				    GFP_KERNEL | __GFP_DMA);
 	if (priv->command_ptr == NULL) {
 		kfree(priv);

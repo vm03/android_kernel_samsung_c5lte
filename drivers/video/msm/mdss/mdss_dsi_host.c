@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,13 +27,22 @@
 #include "mdss_dsi.h"
 #include "mdss_panel.h"
 #include "mdss_debug.h"
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+#include "samsung/ss_dsi_panel_common.h"
+#endif
 
 #define VSYNC_PERIOD 17
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+#define DMA_TX_TIMEOUT 1000
+#else
 #define DMA_TX_TIMEOUT 200
+#endif
 #define DMA_TPG_FIFO_LEN 64
 
 #define FIFO_STATUS	0x0C
 #define LANE_STATUS	0xA8
+static int fifo_error_dsi_dumpreg_done = 0;	//take selective dsi dump during fifo error -- QC case 02370966
+static int clk_error_dsi_dumpreg_done = 0;	//take selective dsi dump during clk error -- QC case 02378877
 
 struct mdss_dsi_ctrl_pdata *ctrl_list[DSI_CTRL_MAX];
 
@@ -147,11 +156,13 @@ void mdss_dsi_clk_req(struct mdss_dsi_ctrl_pdata *ctrl, int enable)
 	MDSS_XLOG(ctrl->ndx, enable, ctrl->mdp_busy, current->pid);
 	if (enable == 0) {
 		/* need wait before disable */
-		mutex_lock(&ctrl->cmd_mutex);
+		if (!ctrl->burst_mode_enabled)
+			mutex_lock(&ctrl->cmd_mutex);
 		if (mdss_dsi_cmd_mdp_busy(ctrl))
 			pr_warn("%s: wait for mdp to be idle timedout\n",
 				__func__);
-		mutex_unlock(&ctrl->cmd_mutex);
+		if (!ctrl->burst_mode_enabled)
+			mutex_unlock(&ctrl->cmd_mutex);
 	}
 
 	MDSS_XLOG(ctrl->ndx, enable, ctrl->mdp_busy, current->pid);
@@ -299,6 +310,9 @@ void mdss_dsi_host_init(struct mdss_panel_data *pdata)
 	u32 data;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct mipi_panel_info *pinfo = NULL;
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+	struct samsung_display_driver_data *vdd = NULL;
+#endif
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -425,6 +439,12 @@ void mdss_dsi_host_init(struct mdss_panel_data *pdata)
 	/* turn esc, byte, dsi, pclk, sclk, hclk on */
 	MIPI_OUTP((ctrl_pdata->ctrl_base) + 0x11c,
 					0x23f); /* DSI_CLK_CTRL */
+
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+	vdd = check_valid_ctrl(ctrl_pdata);
+	if (!IS_ERR_OR_NULL(vdd) && vdd->dtsi_data[ctrl_pdata->ndx].samsung_lp11_init)
+		MIPI_OUTP((ctrl_pdata->ctrl_base) + 0xac,0);/* LP11 */
+#endif
 
 	/* Reset DSI_LANE_CTRL */
 	if (!ctrl_pdata->mmss_clamp)
@@ -1027,6 +1047,7 @@ void mdss_dsi_op_mode_config(int mode,
 
 	if (mode == DSI_VIDEO_MODE) {
 		dsi_ctrl |= 0x03;
+
 		intr_ctrl = DSI_INTR_CMD_DMA_DONE_MASK | DSI_INTR_BTA_DONE_MASK
 			| DSI_INTR_ERROR_MASK;
 	} else {		/* command mode */
@@ -1524,6 +1545,36 @@ static int mdss_dsi_cmd_dma_tpg_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 	return ret;
 }
 
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+char print_cmd_buf[1024];
+
+void print_cmd_desc(struct dsi_cmd_desc *cmds, int cnt)
+{
+	int len;
+	int i,j;
+
+	// comment out below return; if you want to see cmd desc.
+	return;
+
+	for (j=0; j<cnt; j++) {
+		len = 0;
+		len += sprintf(print_cmd_buf, "%02x ", cmds[j].dchdr.dtype);
+		len += sprintf(print_cmd_buf + len, "%02x ", cmds[j].dchdr.last);
+		len += sprintf(print_cmd_buf + len, "%02x ", cmds[j].dchdr.vc);
+		len += sprintf(print_cmd_buf + len, "%02x ", cmds[j].dchdr.ack);
+		len += sprintf(print_cmd_buf + len, "%02x ", cmds[j].dchdr.wait);
+		len += sprintf(print_cmd_buf + len, "%02x ", cmds[j].dchdr.dlen);
+
+		for (i=0; i<cmds[j].dchdr.dlen; i++)
+			len += sprintf(print_cmd_buf + len, "%02x ", cmds[j].payload[i]);
+
+		pr_err("%s : (%02d) %s\n", __func__, j, print_cmd_buf);
+	}
+
+	return;
+}
+#endif
+
 static int mdss_dsi_cmds2buf_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 			struct dsi_cmd_desc *cmds, int cnt, int use_dma_tpg)
 {
@@ -1536,6 +1587,11 @@ static int mdss_dsi_cmds2buf_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 	mdss_dsi_buf_init(tp);
 	cm = cmds;
 	len = 0;
+
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+	print_cmd_desc(cmds, cnt);
+#endif
+
 	while (cnt--) {
 		dchdr = &cm->dchdr;
 		mdss_dsi_buf_reserve(tp, len);
@@ -1911,6 +1967,49 @@ end:
 	return rp->read_cnt;
 }
 
+static inline bool mdss_dsi_delay_cmd(struct mdss_dsi_ctrl_pdata *ctrl)
+{
+	unsigned long flags;
+	bool mdp_busy = false;
+	bool need_wait = false;
+
+	if (!ctrl->mdp_callback)
+		goto exit;
+
+	/* delay only for split dsi, cmd mode and burst mode enabled cases */
+	if (!mdss_dsi_is_hw_config_split(ctrl->shared_data) ||
+		!(ctrl->panel_mode == DSI_CMD_MODE) ||
+		!ctrl->burst_mode_enabled)
+		goto exit;
+
+	/* delay only if cmd is not from mdp and panel has been initialized */
+	if (ctrl->is_cmdlist_from_mdp ||
+		!(ctrl->ctrl_state & CTRL_STATE_PANEL_INIT))
+		goto exit;
+
+	/* if broadcast enabled, apply delay only if this is the ctrl trigger */
+	if (mdss_dsi_sync_wait_enable(ctrl) &&
+		!mdss_dsi_sync_wait_trigger(ctrl))
+		goto exit;
+
+	spin_lock_irqsave(&ctrl->mdp_lock, flags);
+	if (ctrl->mdp_busy == true)
+		mdp_busy = true;
+	spin_unlock_irqrestore(&ctrl->mdp_lock, flags);
+
+	/*
+	 * apply delay only if:
+	 *  mdp_busy bool is set - kickoff is being scheduled by sw
+	 *  MDP_BUSY bit  is not set - transfer is not on-going in hw yet
+	 */
+	if (mdp_busy && !(MIPI_INP(ctrl->ctrl_base + 0x008) & BIT(2)))
+		need_wait = true;
+
+exit:
+	MDSS_XLOG(need_wait, ctrl->is_cmdlist_from_mdp, mdp_busy);
+	return need_wait;
+}
+
 static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 					struct dsi_buf *tp)
 {
@@ -1925,6 +2024,16 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 	len = ALIGN(tp->len, 4);
 	ctrl->dma_size = ALIGN(tp->len, SZ_4K);
 
+	/*
+	 * In ping pong split cases, check if we need to apply a
+	 * delay for any commands that are not coming from
+	 * mdp path
+	 */
+	mutex_lock(&ctrl->mutex);
+	if (mdss_dsi_delay_cmd(ctrl))
+		ctrl->mdp_callback->fxn(ctrl->mdp_callback->data,
+			MDP_INTF_CALLBACK_DSI_WAIT);
+	mutex_unlock(&ctrl->mutex);
 
 	ctrl->mdss_util->iommu_lock();
 	if (ctrl->mdss_util->iommu_attached()) {
@@ -1945,6 +2054,8 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 
 	if (ctrl->panel_mode == DSI_VIDEO_MODE)
 		ignored = 1;
+
+	MDSS_XLOG(mdss_dsi_sync_wait_trigger(ctrl),ctrl->do_unicast,0x1111);
 
 	if (mdss_dsi_sync_wait_trigger(ctrl)) {
 		/* broadcast same cmd to other panel */
@@ -1973,6 +2084,8 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 
 	MIPI_OUTP((ctrl->ctrl_base) + 0x090, 0x01);
 	wmb();
+
+	MDSS_XLOG(mdss_dsi_sync_wait_trigger(ctrl),ctrl->do_unicast,0x2222);
 
 	if (ctrl->do_unicast) {
 		/* let cmd_trigger to kickoff later */
@@ -2335,7 +2448,11 @@ int mdss_dsi_cmdlist_rx(struct mdss_dsi_ctrl_pdata *ctrl,
 		rp = &ctrl->rx_buf;
 		len = mdss_dsi_cmds_rx(ctrl, req->cmds, req->rlen,
 				(req->flags & CMD_REQ_DMA_TPG));
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+		pr_debug("%s skip memcopy to req-buffer from rx buffer", __func__);
+#else
 		memcpy(req->rbuf, rp->data, rp->len);
+#endif
 		ctrl->rx_len = len;
 	} else {
 		pr_err("%s: No rx buffer provided\n", __func__);
@@ -2372,6 +2489,11 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 	}
 
 	req = mdss_dsi_cmdlist_get(ctrl);
+	if (req && from_mdp)
+		ctrl->is_cmdlist_from_mdp = true;
+	else
+		ctrl->is_cmdlist_from_mdp = false;
+
 	if (req && from_mdp && ctrl->burst_mode_enabled) {
 		mutex_lock(&ctrl->cmd_mutex);
 		cmd_mutex_acquired = true;
@@ -2383,8 +2505,7 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 	if (req && (req->flags & CMD_REQ_HS_MODE))
 		hs_req = true;
 
-	if (!ctrl->burst_mode_enabled ||
-		(from_mdp && ctrl->shared_data->cmd_clk_ln_recovery_en)) {
+ 	if ((!ctrl->burst_mode_enabled) || from_mdp){
 		/* make sure dsi_cmd_mdp is idle */
 		rc = mdss_dsi_cmd_mdp_busy(ctrl);
 		if (rc) {
@@ -2448,7 +2569,7 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 	}
 
 	mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 1);
-
+	
 	if (req->flags & CMD_REQ_HS_MODE)
 		mdss_dsi_set_tx_power_mode(0, &ctrl->panel_data);
 
@@ -2498,6 +2619,29 @@ need_lock:
 
 	return ret;
 }
+
+void mdss_dsi_reg_dump(struct mdss_dsi_ctrl_pdata *ctrl, int offset, int cnt) 
+{ 
+	unsigned char *base; 
+	int i, off, addr; 
+	int data[8]; 
+ 
+	base = ctrl->ctrl_base; 
+	base += offset; 
+	off = 0; 
+	addr = (uintptr_t)base & 0x0fffff; 
+	while (cnt > 0) { 
+		i = 0; 
+		while (i < 8) { 
+			data[i++] = MIPI_INP(base + off); 
+			off += 4; 
+		} 
+		printk("dsi: 0x%08x: %08x %08x %08x %08x %08x %08x %08x %08x\n", 
+		addr, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]); 
+		addr += 32; 
+		cnt -= 8; 
+	} 
+} 
 
 static void dsi_send_events(struct mdss_dsi_ctrl_pdata *ctrl,
 					u32 events, u32 arg)
@@ -2657,6 +2801,7 @@ void mdss_dsi_ack_err_status(struct mdss_dsi_ctrl_pdata *ctrl)
 	base = ctrl->ctrl_base;
 
 	status = MIPI_INP(base + 0x0068);/* DSI_ACK_ERR_STATUS */
+	pr_info("%s: status=%x\n", __func__, status);
 
 	if (status) {
 		MIPI_OUTP(base + 0x0068, status);
@@ -2684,6 +2829,7 @@ void mdss_dsi_timeout_status(struct mdss_dsi_ctrl_pdata *ctrl)
 	base = ctrl->ctrl_base;
 
 	status = MIPI_INP(base + 0x00c0);/* DSI_TIMEOUT_STATUS */
+	pr_info("%s: status=%x\n", __func__, status); 
 
 	if (status & 0x0111) {
 		MIPI_OUTP(base + 0x00c0, status);
@@ -2701,6 +2847,7 @@ void mdss_dsi_dln0_phy_err(struct mdss_dsi_ctrl_pdata *ctrl, bool print_en)
 	base = ctrl->ctrl_base;
 
 	status = MIPI_INP(base + 0x00b4);/* DSI_DLN0_PHY_ERR */
+	pr_info("%s: status=%x\n", __func__, status); 
 
 	if (status & 0x011111) {
 		MIPI_OUTP(base + 0x00b4, status);
@@ -2717,6 +2864,7 @@ void mdss_dsi_fifo_status(struct mdss_dsi_ctrl_pdata *ctrl)
 	base = ctrl->ctrl_base;
 
 	status = MIPI_INP(base + 0x000c);/* DSI_FIFO_STATUS */
+	pr_info("%s: status=%x\n", __func__, status); 
 
 	/* fifo underflow, overflow and empty*/
 	if (status & 0xcccc4409) {
@@ -2731,15 +2879,33 @@ void mdss_dsi_fifo_status(struct mdss_dsi_ctrl_pdata *ctrl)
 			pr_err("%s: ctrl ndx=%d status=%x\n", __func__,
 					ctrl->ndx, status);
 
+		if(fifo_error_dsi_dumpreg_done == 0) {
+			mdss_dsi_reg_dump(ctrl, 0, 256); 
+			mdss_dsi_reg_dump(ctrl, 256, 256); 
+
+			fifo_error_dsi_dumpreg_done = 1;
+		}
+		
 		if (status & 0x44440000) {/* DLNx_HS_FIFO_OVERFLOW */
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+			MDSS_XLOG(DSI_EV_DLNx_FIFO_OVERFLOW);
+#endif
 			dsi_send_events(ctrl, DSI_EV_DLNx_FIFO_OVERFLOW, 0);
 			/* Ignore FIFO EMPTY when overflow happens */
 			status = status & 0xeeeeffff;
 		}
-		if (status & 0x88880000)  /* DLNx_HS_FIFO_UNDERFLOW */
+		if (status & 0x88880000) {  /* DLNx_HS_FIFO_UNDERFLOW */
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+			MDSS_XLOG(DSI_EV_DLNx_FIFO_UNDERFLOW);
+#endif
 			dsi_send_events(ctrl, DSI_EV_DLNx_FIFO_UNDERFLOW, 0);
-		if (status & 0x11110000) /* DLN_FIFO_EMPTY */
+		}
+		if (status & 0x11110000) { /* DLN_FIFO_EMPTY */
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+			MDSS_XLOG(DSI_EV_DSI_FIFO_EMPTY);
+#endif
 			dsi_send_events(ctrl, DSI_EV_DSI_FIFO_EMPTY, 0);
+		}
 	}
 
 	if (ctrl->dfps_status)
@@ -2754,6 +2920,7 @@ void mdss_dsi_status(struct mdss_dsi_ctrl_pdata *ctrl)
 	base = ctrl->ctrl_base;
 
 	status = MIPI_INP(base + 0x0008);/* DSI_STATUS */
+	pr_info("%s: status=%x\n", __func__, status);
 
 	if (status & 0x80000000) { /* INTERLEAVE_OP_CONTENTION */
 		MIPI_OUTP(base + 0x0008, status);
@@ -2770,6 +2937,14 @@ void mdss_dsi_clk_status(struct mdss_dsi_ctrl_pdata *ctrl)
 	status = MIPI_INP(base + 0x0120);/* DSI_CLK_STATUS */
 
 	if (status & 0x10000) { /* DSI_CLK_PLL_UNLOCKED */
+		
+		if(clk_error_dsi_dumpreg_done == 0) {
+			mdss_dsi_reg_dump(ctrl, 0, 256); 
+			mdss_dsi_reg_dump(ctrl, 256, 256); 
+
+			clk_error_dsi_dumpreg_done = 1;
+		}
+		
 		MIPI_OUTP(base + 0x0120, status);
 		dsi_send_events(ctrl, DSI_EV_PLL_UNLOCKED, 0);
 		pr_err("%s: status=%x\n", __func__, status);

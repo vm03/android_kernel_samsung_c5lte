@@ -188,6 +188,7 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 	struct sg_table *table;
 	struct scatterlist *sg;
 	int i, ret;
+	int nr_alloc_cur, nr_alloc_peak;
 
 	buffer = kzalloc(sizeof(struct ion_buffer), GFP_KERNEL);
 	if (!buffer)
@@ -263,7 +264,10 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 	mutex_lock(&dev->buffer_lock);
 	ion_buffer_add(dev, buffer);
 	mutex_unlock(&dev->buffer_lock);
-	atomic_add(len, &heap->total_allocated);
+	nr_alloc_cur = atomic_add_return(len, &heap->total_allocated);
+	nr_alloc_peak = atomic_read(&heap->total_allocated_peak);
+	if (nr_alloc_cur > nr_alloc_peak)
+		atomic_set(&heap->total_allocated_peak, nr_alloc_cur);
 	return buffer;
 
 err:
@@ -1748,13 +1752,15 @@ static int ion_debug_heap_show(struct seq_file *s, void *unused)
 	seq_printf(s, "%16.s %16zu\n", "total orphaned",
 		   total_orphaned_size);
 	seq_printf(s, "%16.s %16zu\n", "total ", total_size);
+	seq_printf(s, "%16.s %16u\n", "peak allocated",
+		atomic_read(&heap->total_allocated_peak));
 	if (heap->flags & ION_HEAP_FLAG_DEFER_FREE)
 		seq_printf(s, "%16.s %16zu\n", "deferred free",
 				heap->free_list_size);
 	seq_printf(s, "----------------------------------------------------\n");
 
 	if (heap->debug_show)
-		heap->debug_show(heap, s, unused);
+		heap->debug_show(heap, s, 0);
 
 	ion_heap_print_debug(s, heap);
 	return 0;
@@ -1771,6 +1777,37 @@ static const struct file_operations debug_heap_fops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
+
+void show_ion_usage_simple(struct ion_device *dev, unsigned long is_simple, struct seq_file *s)
+{
+	struct ion_heap *heap;
+	struct ion_heap *system_heap = NULL;
+	unsigned long system_byte = 0;
+
+	if (!down_read_trylock(&dev->lock)) {
+		pr_err("Ion output would deadlock, can't print debug information\n");
+		return;
+	}
+
+	plist_for_each_entry(heap, &dev->heaps, node) {
+		if (!strcmp(heap->name, "system")) {
+			system_heap = heap;
+			break;
+		}
+	}
+	if (system_heap == NULL) {
+		up_read(&dev->lock);
+		return;
+	}
+	system_byte = (unsigned int)atomic_read(&system_heap->total_allocated);
+	if (s != NULL)
+		seq_printf(s, "SystemHeap:     %8lu kB\n", system_byte >> 10);
+	else
+		printk("SystemHeap:%lukB ", system_byte >> 10);
+	if (heap->debug_show)
+		heap->debug_show(heap, s, (void *)1);
+	up_read(&dev->lock);
+}
 
 void show_ion_usage(struct ion_device *dev)
 {

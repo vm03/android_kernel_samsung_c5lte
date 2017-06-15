@@ -1870,6 +1870,7 @@ mbim_write(struct file *fp, const char __user *buf, size_t count, loff_t *pos)
 	ret = usb_func_ep_queue(&dev->function, dev->not_port.notify,
 			   req, GFP_ATOMIC);
 	if (ret == -ENOTSUPP || (ret < 0 && ret != -EAGAIN)) {
+		pr_err("drop ctrl pkt of len %d error %d\n", cpkt->len, ret);
 		spin_lock_irqsave(&dev->lock, flags);
 		/* check if device disconnected while we dropped lock */
 		if (atomic_read(&dev->online)) {
@@ -1879,7 +1880,6 @@ mbim_write(struct file *fp, const char __user *buf, size_t count, loff_t *pos)
 		}
 		dev->cpkt_drop_cnt++;
 		spin_unlock_irqrestore(&dev->lock, flags);
-		pr_err("drop ctrl pkt of len %d error %d\n", cpkt->len, ret);
 	} else {
 		ret = 0;
 	}

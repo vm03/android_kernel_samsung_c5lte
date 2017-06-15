@@ -2779,8 +2779,10 @@ void ipa_inc_client_enable_clks(void)
 {
 	ipa_active_clients_lock();
 	ipa_ctx->ipa_active_clients.cnt++;
-	if (ipa_ctx->ipa_active_clients.cnt == 1)
+	if (ipa_ctx->ipa_active_clients.cnt == 1) {
+		pm_stay_awake(ipa_ctx->pdev);
 		ipa_enable_clks();
+	}
 	IPADBG("active clients = %d\n", ipa_ctx->ipa_active_clients.cnt);
 	ipa_active_clients_unlock();
 }
@@ -2840,6 +2842,7 @@ void ipa_dec_client_disable_clks(void)
 			ipa_ctx->ipa_active_clients.cnt = 1;
 			queue_work(ipa_ctx->power_mgmt_wq, &ipa_tag_work);
 		} else {
+			pm_relax(ipa_ctx->pdev);
 			ipa_disable_clks();
 		}
 	}
@@ -3150,6 +3153,7 @@ static int apps_cons_request_resource(void)
 
 static void ipa_sps_release_resource(struct work_struct *work)
 {
+	mutex_lock(&ipa_ctx->sps_pm.sps_pm_lock);
 	/* check whether still need to decrease client usage */
 	if (atomic_read(&ipa_ctx->sps_pm.dec_clients)) {
 		if (atomic_read(&ipa_ctx->sps_pm.eot_activity)) {
@@ -3161,6 +3165,7 @@ static void ipa_sps_release_resource(struct work_struct *work)
 		}
 	}
 	atomic_set(&ipa_ctx->sps_pm.eot_activity, 0);
+	mutex_unlock(&ipa_ctx->sps_pm.sps_pm_lock);
 }
 
 int ipa_create_apps_resource(void)
@@ -3616,6 +3621,12 @@ static int ipa_init(const struct ipa_plat_drv_res *resource_p,
 	/* Create a wakeup source. */
 	wakeup_source_init(&ipa_ctx->w_lock, "IPA_WS");
 	spin_lock_init(&ipa_ctx->wakelock_ref_cnt.spinlock);
+
+	/* Create a wakeup source. */
+	ipa_ctx->pdev->power.wakeup = wakeup_source_register("IPA_WS2");
+
+	/* Initialize the SPS PM lock. */
+	mutex_init(&ipa_ctx->sps_pm.sps_pm_lock);
 
 	/* Initialize IPA RM (resource manager) */
 	result = ipa_rm_initialize();

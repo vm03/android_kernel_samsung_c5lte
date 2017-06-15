@@ -828,7 +828,7 @@ end:
 
 static void *adv7533_handle_hpd_intr(struct adv7533 *pdata)
 {
-	int ret;
+	int ret = 0;
 	u8 hpd_state;
 	u8 connected = 0, disconnected = 0;
 

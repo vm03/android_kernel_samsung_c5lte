@@ -207,7 +207,7 @@ struct audio_client *q6asm_get_audio_client(int session_id);
 int q6asm_audio_client_buf_alloc(unsigned int dir/* 1:Out,0:In */,
 				struct audio_client *ac,
 				unsigned int bufsz,
-				uint32_t bufcnt);
+				unsigned int bufcnt);
 int q6asm_audio_client_buf_alloc_contiguous(unsigned int dir
 				/* 1:Out,0:In */,
 				struct audio_client *ac,
@@ -477,4 +477,11 @@ int q6asm_send_mtmx_strtr_window(struct audio_client *ac,
 /* Retrieve the current DSP path delay */
 int q6asm_get_path_delay(struct audio_client *ac);
 
+#ifdef CONFIG_SEC_SND_SOLUTION
+int q6asm_set_sa(struct audio_client *ac, long *param);
+int q6asm_set_vsp(struct audio_client *ac, long *param);
+int q6asm_set_dha(struct audio_client *ac, long *param);
+int q6asm_set_lrsm(struct audio_client *ac, long *param);
+int q6asm_set_msp(struct audio_client *ac, long *param);
+#endif /* CONFIG_SEC_SND_SOLUTION */
 #endif /* __Q6_ASM_H__ */

@@ -2367,11 +2367,11 @@ static inline void mmc_bus_put(struct mmc_host *host)
 int mmc_resume_bus(struct mmc_host *host)
 {
 	unsigned long flags;
-	int err = 0;
 
 	if (!mmc_bus_needs_resume(host))
 		return -EINVAL;
 
+	printk("%s: Starting deferred resume\n", mmc_hostname(host));
 	spin_lock_irqsave(&host->lock, flags);
 	host->bus_resume_flags &= ~MMC_BUSRESUME_NEEDS_RESUME;
 	host->rescan_disable = 0;
@@ -2382,18 +2382,10 @@ int mmc_resume_bus(struct mmc_host *host)
 		mmc_power_up(host);
 		BUG_ON(!host->bus_ops->resume);
 		host->bus_ops->resume(host);
-		if (mmc_card_cmdq(host->card)) {
-			err = mmc_cmdq_halt(host, false);
-			if (err)
-				pr_err("%s: un-halt: failed: %d\n",
-				       __func__, err);
-			else
-				mmc_card_clr_suspended(host->card);
-		}
-		host->dev_status = DEV_RESUMED;
 	}
 
 	mmc_bus_put(host);
+	printk("%s: Deferred resume completed\n", mmc_hostname(host));
 	return 0;
 }
 
@@ -2990,7 +2982,8 @@ int mmc_can_sanitize(struct mmc_card *card)
 {
 	if (!mmc_can_trim(card) && !mmc_can_erase(card))
 		return 0;
-	if (card->ext_csd.sec_feature_support & EXT_CSD_SEC_SANITIZE)
+	if ((card->ext_csd.sec_feature_support & EXT_CSD_SEC_SANITIZE)
+			&& (card->host->caps2 & MMC_CAP2_SANITIZE))
 		return 1;
 	return 0;
 }
@@ -3484,12 +3477,12 @@ EXPORT_SYMBOL(mmc_cmdq_halt_on_empty_queue);
 void mmc_clk_scaling(struct mmc_host *host, bool from_wq)
 {
 	int err = 0;
-	struct mmc_card *card = host->card;
+	struct mmc_card *card;
 	unsigned long total_time_ms = 0;
 	unsigned long busy_time_ms = 0;
 	unsigned long freq;
-	unsigned int up_threshold = host->clk_scaling.up_threshold;
-	unsigned int down_threshold = host->clk_scaling.down_threshold;
+	unsigned int up_threshold;
+	unsigned int down_threshold;
 	bool queue_scale_down_work = false;
 	enum mmc_load state;
 	bool cmdq_mode;
@@ -3500,6 +3493,9 @@ void mmc_clk_scaling(struct mmc_host *host, bool from_wq)
 	}
 
 	card = host->card;
+	up_threshold = host->clk_scaling.up_threshold;
+	down_threshold = host->clk_scaling.down_threshold;
+
 	if (!card || !host->bus_ops || !host->bus_ops->change_bus_speed) {
 		pr_err("%s: %s: invalid entry\n", mmc_hostname(host), __func__);
 		goto out;
@@ -4140,6 +4136,9 @@ int mmc_suspend_host(struct mmc_host *host)
 	if (host->ops->notify_pm_status)
 		host->ops->notify_pm_status(host,
 			remove_pm_vote ? DEV_ERROR : DEV_SUSPENDED);
+
+	if (host->card && host->card->type == MMC_TYPE_SD)
+		mdelay(50);
 
 	return err;
 out:
