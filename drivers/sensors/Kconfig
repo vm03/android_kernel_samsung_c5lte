@@ -106,6 +106,21 @@ config SENSORS_TMD3700_RESET_DEFENCE_CODE
 	help
 	  This option enables defence code for reset of VDD.
 
+config SENSORS_YAS539
+	tristate "YAS539 Sensor Driver"
+	depends on I2C
+	default n
+	help
+	  If you say yes here you get support for YAMAHA
+	  YAS539 Geomagnitor Sensor.
+
+config SENSORS_YAS_RESET_DEFENCE_CODE
+	depends on I2C
+	tristate "YAS defence code by reset"
+	default n
+	help
+	  This option enables defence code by reset using yas driver.
+
 config SENSORS_STK3013
 	depends on I2C
 	tristate "STK3013 driver"

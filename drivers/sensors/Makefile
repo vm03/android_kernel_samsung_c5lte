@@ -14,3 +14,4 @@ obj-$(CONFIG_SENSORS_STK3013)	+= stk3013.o
 # magnetic_sensor
 obj-$(CONFIG_SENSORS_AK09911C)	+= ak09911c.o
 obj-$(CONFIG_SENSORS_AK09916C)	+= ak09916c.o
+obj-$(CONFIG_SENSORS_YAS539)	+= yas_mag_drv-yas539.o yas_mag_kernel.o
