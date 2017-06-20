@@ -48,6 +48,7 @@
 #ifdef CONFIG_SEC_FACTORY
 #undef CONFIG_ESE_SECURE
 #endif
+#define ENABLE_SENSORS_FPRINT_SECURE
 
 static int msm_spi_pm_resume_runtime(struct device *device);
 static int msm_spi_pm_suspend_runtime(struct device *device);
