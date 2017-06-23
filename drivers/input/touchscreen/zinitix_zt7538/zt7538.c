@@ -501,6 +501,29 @@ static void zt7538_set_ta_status(struct zt7538_ts_info *info)
 	zt7538_set_optional_mode(info, false);
 }
 
+#if defined(CONFIG_FB)
+static int fb_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data)
+{
+	struct fb_event *evdata = data;
+	int *blank;
+
+	struct zt7538_ts_info *info =
+		container_of(self, struct zt7538_ts_info, fb_notif);
+
+	if (evdata && evdata->data && event == FB_EVENT_BLANK &&
+			info && info->client) {
+		blank = evdata->data;
+		if (*blank == FB_BLANK_UNBLANK)
+			zt7538_input_open (info->input_dev);
+		else if (*blank == FB_BLANK_POWERDOWN)
+			zt7538_input_close (info->input_dev);
+	}
+
+	return 0;
+}
+#endif
+
 #ifdef TSP_MUIC_NOTIFICATION
 int tsp_cable_check(muic_attached_dev_t attached_dev)
 {
@@ -4542,6 +4565,15 @@ static int zt7538_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		zt7538_notification, MUIC_NOTIFY_DEV_TSP);
 #endif
 
+#if defined(CONFIG_FB)
+	info->fb_notif.notifier_call = fb_notifier_callback;
+	ret = fb_register_client(&info->fb_notif);
+	if (ret)
+		dev_err(&info->client->dev,
+			"Unable to register fb_notifier: %d\n",
+			ret);
+#endif
+
 	dev_info(&client->dev, "zinitix touch probe done.\n");
 
 	return 0;
@@ -4586,6 +4618,12 @@ static int zt7538_ts_remove(struct i2c_client *client)
 {
 	struct zt7538_ts_info *info = i2c_get_clientdata(client);
 	struct zt7538_ts_dt_data *pdata = info->pdata;
+
+#if defined(CONFIG_FB)
+	if (fb_unregister_client(&info->fb_notif))
+		dev_err(&client->dev,
+			"Error occurred while unregistering fb_notifier.\n");
+#endif
 
 	disable_irq(info->irq);
 	down(&info->work_lock);
