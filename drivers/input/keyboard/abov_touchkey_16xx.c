@@ -40,6 +40,11 @@
 #include <linux/input/input_booster.h>
 #endif
 
+#if defined(CONFIG_FB)
+#include <linux/notifier.h>
+#include <linux/fb.h>
+#endif
+
 #define ABOV_TK_NAME "abov-ft1604"
 
 /* registers */
@@ -147,6 +152,9 @@ struct abov_ft1604_info {
 #ifdef CONFIG_INPUT_BOOSTER
 	struct input_booster *tkey_booster;
 #endif
+#if defined(CONFIG_FB)
+	struct notifier_block fb_notif;
+#endif
 };
 
 struct abov_ft1604_devicetree_data {
@@ -173,6 +181,12 @@ static int abov_tk_i2c_read_checksum(struct abov_ft1604_info *info);
 
 static int abov_touchkey_led_status;
 static int abov_touchled_cmd_reserved;
+
+#if defined(CONFIG_FB)
+static int fb_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data);
+#endif
+
 
 #ifdef GLOVE_MODE
 static int abov_glove_mode_enable(struct i2c_client *client, u8 cmd)
@@ -1649,6 +1663,15 @@ static int abov_tk_probe(struct i2c_client *client,
 	}
 #endif
 
+#if defined(CONFIG_FB)
+	info->fb_notif.notifier_call = fb_notifier_callback;
+	ret = fb_register_client(&info->fb_notif);
+	if (ret)
+		dev_err(&info->client->dev,
+			"Unable to register fb_notifier: %d\n",
+			ret);
+#endif
+
 	dev_err(&client->dev, "%s done\n", __func__);
 	info->probe_done = true;
 
@@ -1711,6 +1734,13 @@ static int abov_tk_remove(struct i2c_client *client)
 		info->dtdata->power(info->dtdata, false);
 
 	info->enabled = false;
+
+#if defined(CONFIG_FB)
+	if (fb_unregister_client(&info->fb_notif))
+		dev_err(&client->dev,
+			"Error occurred while unregistering fb_notifier.\n");
+#endif
+
 	if (info->irq >= 0)
 		free_irq(info->irq, info);
 	input_unregister_device(info->input_dev);
@@ -1804,6 +1834,29 @@ static int abov_tk_resume(struct device *dev)
 
 	return 0;
 }
+
+#if defined(CONFIG_FB)
+static int fb_notifier_callback(struct notifier_block *self,
+				 unsigned long event, void *data)
+{
+	struct fb_event *evdata = data;
+	int *blank;
+
+	struct abov_ft1604_info *info =
+		container_of(self, struct abov_ft1604_info, fb_notif);
+
+	if (evdata && evdata->data && event == FB_EVENT_BLANK &&
+			info && info->client) {
+		blank = evdata->data;
+		if (*blank == FB_BLANK_UNBLANK)
+			abov_tk_resume(&info->client->dev);
+		else if (*blank == FB_BLANK_POWERDOWN)
+			abov_tk_suspend(&info->client->dev);
+	}
+
+	return 0;
+}
+#endif
 
 static int abov_tk_input_open(struct input_dev *dev)
 {
