@@ -23,6 +23,10 @@
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
+#if defined(CONFIG_FB)
+#include <linux/notifier.h>
+#include <linux/fb.h>
+#endif
 #if defined(CONFIG_PM_RUNTIME)
 #include <linux/pm_runtime.h>
 #endif
@@ -478,6 +482,9 @@ struct zt7538_ts_info {
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend			early_suspend;
 #endif
+#if defined(CONFIG_FB)
+	struct notifier_block fb_notif;
+#endif
 	struct semaphore			raw_data_lock;
 	u16					touch_mode;
 	s16					cur_data[MAX_TRAW_DATA_SZ];
@@ -596,6 +603,12 @@ extern struct class *sec_class;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void zt7538_ts_early_suspend(struct early_suspend *h);
 static void zt7538_ts_late_resume(struct early_suspend *h);
+#endif
+#if defined(CONFIG_FB)
+static int fb_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data);
+static int zt7538_input_open(struct input_dev *dev);
+static void zt7538_input_close(struct input_dev *dev);
 #endif
 static bool zt7538_power_control(struct zt7538_ts_info *info, u8 ctl);
 static int zt7538_power(struct i2c_client *client, int on);
