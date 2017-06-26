@@ -72,6 +72,11 @@
 #include <linux/cpufreq.h>
 #endif
 
+#if defined(CONFIG_FB)
+#include <linux/notifier.h>
+#include <linux/fb.h>
+#endif
+
 
 #define VALIDITY_PART_NAME "validity_fingerprint"
 static LIST_HEAD(device_list);
@@ -164,7 +169,12 @@ struct vfsspi_device_data {
 #endif
 	int sensortype;
 	unsigned int orient;
+#if defined(CONFIG_FB)
+	struct notifier_block fb_notif;
+#endif
+
 };
+
 
 #ifdef CONFIG_SENSORS_FINGERPRINT_DUALIZATION
 int FP_CHECK = 0; /* extern variable init */
@@ -194,6 +204,11 @@ extern int fingerprint_register(struct device *dev, void *drvdata,
 	struct device_attribute *attributes[], char *name);
 extern void fingerprint_unregister(struct device *dev,
 	struct device_attribute *attributes[]);
+#endif
+
+#if defined(CONFIG_FB)
+static int fb_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data);
 #endif
 
 static int vfsspi_send_drdy_signal(struct vfsspi_device_data *vfsspi_device)
@@ -1655,7 +1670,6 @@ static int vfsspi_probe(struct spi_device *spi)
 		create_singlethread_workqueue("vfsspi_debug_wq");
 	if (!vfsspi_device->wq_dbg) {
 		status = -ENOMEM;
-		pr_err("%s: could not create workqueue\n", __func__);
 		goto vfsspi_sysfs_failed;
 	}
 	INIT_WORK(&vfsspi_device->work_debug, vfsspi_work_func_debug);
@@ -1669,6 +1683,13 @@ static int vfsspi_probe(struct spi_device *spi)
 		        pr_info("%s, type (%u), retry (%d)\n"
 				, __func__, vfsspi_device->sensortype, retry);
 	} while (!vfsspi_device->sensortype && ++retry < 3);
+#endif
+
+#if defined(CONFIG_FB)
+	vfsspi_device->fb_notif.notifier_call = fb_notifier_callback;
+	status = fb_register_client(&vfsspi_device->fb_notif);
+	if (status)
+		pr_err("%s: Unable to register fb_notifier: %d\n", __func__, status);
 #endif
 
 	vfsspi_pin_control(vfsspi_device, false);
@@ -1728,6 +1749,11 @@ static int vfsspi_remove(struct spi_device *spi)
 
 		mutex_lock(&device_list_mutex);
 
+#if defined(CONFIG_FB)
+		if (fb_unregister_client(&vfsspi_device->fb_notif))
+			pr_err("%s: Error occurred while unregistering fb_notifier.\n", __func__);
+#endif
+
 		vfsspi_platformUninit(vfsspi_device);
 
 #ifdef CONFIG_SENSORS_FINGERPRINT_SYSFS
@@ -1783,10 +1809,37 @@ static int vfsspi_pm_resume(struct device *dev)
 	return 0;
 }
 
+
+#if defined(CONFIG_FB)
+static int fb_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data)
+{
+	struct fb_event *evdata = data;
+	int *blank;
+
+	struct vfsspi_device_data *vfsspi_device =
+		container_of(self, struct vfsspi_device_data, fb_notif);
+
+	if (evdata && evdata->data && event == FB_EVENT_BLANK &&
+			vfsspi_device && g_data) {
+		blank = evdata->data;
+		if (*blank == FB_BLANK_UNBLANK)
+			vfsspi_pm_resume(NULL);
+		else if (*blank == FB_BLANK_POWERDOWN)
+			vfsspi_pm_suspend(NULL);
+	}
+
+	return 0;
+}
+#endif
+
 static const struct dev_pm_ops vfsspi_pm_ops = {
+#if (!defined(CONFIG_FB) && !defined(CONFIG_HAS_EARLYSUSPEND))
 	.suspend = vfsspi_pm_suspend,
 	.resume = vfsspi_pm_resume
+#endif
 };
+
 
 struct spi_driver vfsspi_spi = {
 	.driver = {
