@@ -1520,6 +1520,7 @@ type_check_exit:
 #endif
 
 #ifdef ENABLE_SENSORS_FPRINT_SECURE
+#if (!defined(CONFIG_FB) && !defined(CONFIG_HAS_EARLYSUSPEND))
 static int vfsspi_wakeup_daemon(struct vfsspi_device_data *vfsspi_device)
 {
 #ifdef CONFIG_SENSORS_FP_LOCKSCREEN_MODE
@@ -1540,6 +1541,7 @@ static int vfsspi_wakeup_daemon(struct vfsspi_device_data *vfsspi_device)
 #endif
 	return 0;
 }
+#endif /* (!defined(CONFIG_FB) && !defined(CONFIG_HAS_EARLYSUSPEND)) */
 #endif
 
 static int vfsspi_probe(struct spi_device *spi)
@@ -1784,6 +1786,7 @@ static void vfsspi_shutdown(struct spi_device *spi)
 	pr_info("%s\n", __func__);
 }
 
+#if (!defined(CONFIG_FB) && !defined(CONFIG_HAS_EARLYSUSPEND))
 static int vfsspi_pm_suspend(struct device *dev)
 {
 	if (g_data != NULL) {
@@ -1808,7 +1811,7 @@ static int vfsspi_pm_resume(struct device *dev)
 	}
 	return 0;
 }
-
+#endif /* (!defined(CONFIG_FB) && !defined(CONFIG_HAS_EARLYSUSPEND)) */
 
 #if defined(CONFIG_FB)
 static int fb_notifier_callback(struct notifier_block *self,
@@ -1824,9 +1827,9 @@ static int fb_notifier_callback(struct notifier_block *self,
 			vfsspi_device && g_data) {
 		blank = evdata->data;
 		if (*blank == FB_BLANK_UNBLANK)
-			vfsspi_pm_resume(NULL);
+			vfsspi_enableIrq(vfsspi_device);
 		else if (*blank == FB_BLANK_POWERDOWN)
-			vfsspi_pm_suspend(NULL);
+			vfsspi_disableIrq(vfsspi_device);
 	}
 
 	return 0;
