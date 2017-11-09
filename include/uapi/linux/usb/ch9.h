@@ -720,7 +720,8 @@ struct usb_interface_assoc_descriptor {
 	__u8  iFunction;
 } __attribute__ ((packed));
 
-#define USB_DT_INTERFACE_ASSOCIATION_SIZE   8
+#define USB_DT_INTERFACE_ASSOCIATION_SIZE	8
+
 /*-------------------------------------------------------------------------*/
 
 /* USB_DT_SECURITY:  group of wireless security descriptors, including
@@ -813,6 +814,8 @@ struct usb_wireless_cap_descriptor {	/* Ultra Wide Band */
 	__le16 bmBandGroup;
 	__u8  bReserved;
 } __attribute__((packed));
+
+#define USB_DT_USB_WIRELESS_CAP_SIZE	11
 
 /* USB 2.0 Extension descriptor */
 #define	USB_CAP_TYPE_EXT		2
