@@ -10939,13 +10939,13 @@
 
 	mux_sel {
 		compatible = "samsung,sec-mux-sel";
-		mux_sel,mux_sel_1_en = <0x1>;
+		mux_sel,mux_sel_1_en;
 		mux_sel,mux_sel_1 = <0x23 0x14 0x0>;
 		mux_sel,mux_sel_1_type = <0x18>;
 		mux_sel,mux_sel_1_mpp = <0x4>;
 		mux_sel,mux_sel_1_low = <0x4>;
 		mux_sel,mux_sel_1_high = <0x3>;
-		mux_sel,mux_sel_2_en = <0x1>;
+		mux_sel,mux_sel_2_en;
 		mux_sel,mux_sel_2 = <0x23 0x3b 0x0>;
 		mux_sel,mux_sel_2_type = <0x5>;
 		mux_sel,mux_sel_2_mpp = <0x2>;
