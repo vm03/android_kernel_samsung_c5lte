@@ -110,6 +110,14 @@ struct qseecom_qseos_version_req {
 };
 
 /*
+ * struct qseecom_qsee_version_req - get qsee version
+ * @qsee_version - version number
+ */
+struct qseecom_qsee_version_req {
+	unsigned int qsee_version;
+};
+
+/*
  * struct qseecom_qseos_app_load_query - verify if app is loaded in qsee
  * @app_name[MAX_APP_NAME_SIZE]-  name of the app.
  * @app_id - app id.
@@ -233,6 +241,24 @@ struct qseecom_sg_entry_64bit {
 	uint32_t len;
 } __attribute__ ((packed));
 
+/*
+ * sg list buf format version
+ * 1: Legacy format to support only 512 SG list entries
+ * 2: new format to support > 512 entries
+ */
+#define QSEECOM_SG_LIST_BUF_FORMAT_VERSION_1	1
+#define QSEECOM_SG_LIST_BUF_FORMAT_VERSION_2	2
+
+struct qseecom_sg_list_buf_hdr_64bit {
+	struct qseecom_sg_entry_64bit  blank_entry;	/* must be all 0 */
+	uint32_t version;		/* sg list buf format version */
+	uint64_t new_buf_phys_addr;	/* PA of new buffer */
+	uint32_t nents_total;		/* Total number of SG entries */
+} __attribute__ ((packed));
+
+#define QSEECOM_SG_LIST_BUF_HDR_SZ_64BIT	\
+			sizeof(struct qseecom_sg_list_buf_hdr_64bit)
+
 #define SG_ENTRY_SZ		sizeof(struct qseecom_sg_entry)
 #define SG_ENTRY_SZ_64BIT	sizeof(struct qseecom_sg_entry_64bit)
 
@@ -333,5 +359,8 @@ extern long qseecom_ioctl(struct file *file,
 
 #define QSEECOM_IOCTL_SEND_MODFD_RESP_64 \
 	_IOWR(QSEECOM_IOC_MAGIC, 36, struct qseecom_send_modfd_listener_resp)
+
+#define QSEECOM_IOCTL_GET_QSEE_VERSION_REQ \
+	_IOWR(QSEECOM_IOC_MAGIC, 37, struct qseecom_qsee_version_req)	
 
 #endif /* _UAPI_QSEECOM_H_ */
