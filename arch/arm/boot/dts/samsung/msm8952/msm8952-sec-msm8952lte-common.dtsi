@@ -446,12 +446,12 @@
 };
 
 &qcom_seecom{
-	reg = <0x84B00000 0xF00000>;
+	reg = <0x84700000 0x1300000>;
 	status = "okay";
 };
 
 &other_ext_mem{
-	reg = <0x0 0x84B00000 0x0 0x1D00000>;
+	reg = <0x0 0x84700000 0x0 0x2100000>;
 };
 
 &modem_mem{
