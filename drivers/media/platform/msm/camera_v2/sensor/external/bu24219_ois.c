@@ -583,11 +583,16 @@ static void bu24219_ois_init_shift_table (struct bu24219_ois_ctrl_t *a_ctrl)
     }
 }
 
-int bu24219_ois_shift_calibration(uint16_t af_position) {
+int bu24219_ois_shift_calibration(uint16_t af_position)
+{
     uint32_t data;
     int rc = 0;
     u16 *shift_x, *shift_y;
 
+    if (g_bu24219_ois_t->ois_mode == OIS_MODE_OFF) {
+        CDBG_I("ois mode not set yet! return\n");
+        return 0;
+    }
     shift_x = g_bu24219_ois_t->shift_tbl.shift_x;
     shift_y = g_bu24219_ois_t->shift_tbl.shift_y;
     if (!g_bu24219_ois_t || !(g_bu24219_ois_t->fw_info.module_fw))
@@ -900,18 +905,20 @@ int bu24219_ois_read_status(struct bu24219_ois_ctrl_t *a_ctrl)
     int ret = 0;
     u16 status = 0;
     int wait_ready_cnt = 0;
+    int i2c_failure_cnt = 0;
 
     do {
         ret = bu24219_ois_i2c_byte_read(a_ctrl, 0x6024, &status);
         if (ret < 0) {
             pr_err("i2c read fail\n");
+            i2c_failure_cnt++;
         }
         if (status != 0)
             break;
 
         usleep_range(5000, 5010);
         wait_ready_cnt ++;
-    } while(wait_ready_cnt < 200);
+    } while(wait_ready_cnt < 50 || i2c_failure_cnt < 10);
 
     if (status) {
         CDBG_I("ois status ready(%d), wait(%d ms)\n", status, wait_ready_cnt * 5);
@@ -2201,6 +2208,7 @@ static ssize_t sysfs_ois_force_fw_load(struct device *dev, struct device_attribu
     if (g_bu24219_ois_t->is_camera_run || g_bu24219_ois_t->ois_state != OIS_POWER_DOWN)
         return size;
 
+    mutex_lock(g_bu24219_ois_t->ois_mutex);
     switch (buf[0]) {
         case '1' :
             g_bu24219_ois_t->fw_info.is_loaded = false;
@@ -2217,6 +2225,7 @@ static ssize_t sysfs_ois_force_fw_load(struct device *dev, struct device_attribu
         default:
             break;
     }
+    mutex_unlock(g_bu24219_ois_t->ois_mutex);
     return size;
 }
 

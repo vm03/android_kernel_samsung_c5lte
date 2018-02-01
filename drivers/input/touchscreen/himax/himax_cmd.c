@@ -236,6 +236,11 @@ static ssize_t store_cmd(struct device *dev, struct device_attribute
 	bool cmd_found = false;
 	int param_cnt = 0;
 
+	if (strlen(buf) >= TSP_CMD_STR_LEN) {		
+		E("%s: cmd length is over (%s,%d)!!\n", __func__, buf, (int)strlen(buf));
+		return -EINVAL;
+	}
+
 	if (finfo->cmd_is_running == true) {
 		E("%s: other cmd is running\n", __func__);
 		goto err_out;
@@ -297,7 +302,7 @@ static ssize_t store_cmd(struct device *dev, struct device_attribute
 				param_cnt++;
 			}
 			cur++;
-		} while (cur - buf <= len);
+		} while ((cur - buf <= len) && (param_cnt < TSP_CMD_PARAM_NUM));
 	}
 
 	I("cmd = %s\n", tsp_cmd_ptr->cmd_name);

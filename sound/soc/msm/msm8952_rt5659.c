@@ -146,12 +146,11 @@ static struct snd_soc_jack hs_jack;
 static struct mutex jack_mutex;
 #endif /* CONFIG_SAMSUNG_JACK */
 
-static char const *mi2s_sample_rate_text[] = {"KHZ_8", "KHZ_16",
-					   "KHZ_32", "KHZ_44P1", "KHZ_48",
+static char const *mi2s_sample_rate_text[] = {"KHZ_48",
 					   "KHZ_96", "KHZ_192"};
 
 static const struct soc_enum msm8952_mi2s_snd_enum[] = {
-	SOC_ENUM_SINGLE_EXT(7, mi2s_sample_rate_text),
+	SOC_ENUM_SINGLE_EXT(3, mi2s_sample_rate_text),
 };
 
 static struct afe_clk_cfg mi2s_rx_clk = {
@@ -1020,24 +1019,12 @@ static int mi2s_rx_sample_rate_get(struct snd_kcontrol *kcontrol,
 
 	switch (mi2s_rx_sample_rate) {
 	case SAMPLING_RATE_192KHZ:
-		sample_rate_val = 6;
-		break;
-	case SAMPLING_RATE_96KHZ:
-		sample_rate_val = 5;
-		break;
-	case SAMPLING_RATE_48KHZ:
-		sample_rate_val = 4;
-		break;
-	case SAMPLING_RATE_44P1KHZ:
-		sample_rate_val = 3;
-		break;
-	case SAMPLING_RATE_32KHZ:
 		sample_rate_val = 2;
 		break;
-	case SAMPLING_RATE_16KHZ:
+	case SAMPLING_RATE_96KHZ:
 		sample_rate_val = 1;
 		break;
-	case SAMPLING_RATE_8KHZ:
+	case SAMPLING_RATE_48KHZ:
 	default:
 		sample_rate_val = 0;
 		break;
@@ -1058,24 +1045,12 @@ static int mi2s_rx_sample_rate_put(struct snd_kcontrol *kcontrol,
 
 	switch (sample_rate_index) {
 	case 0:
-		sample_rate = SAMPLING_RATE_8KHZ;
-		break;
-	case 1:
-		sample_rate = SAMPLING_RATE_16KHZ;
-		break;
-	case 2:
-		sample_rate = SAMPLING_RATE_32KHZ;
-		break;
-	case 3:
-		sample_rate = SAMPLING_RATE_44P1KHZ;
-		break;
-	case 4:
 		sample_rate = SAMPLING_RATE_48KHZ;
 		break;
-	case 5:
+	case 1:
 		sample_rate = SAMPLING_RATE_96KHZ;
 		break;
-	case 6:
+	case 2:
 		sample_rate = SAMPLING_RATE_192KHZ;
 		break;
 	default:

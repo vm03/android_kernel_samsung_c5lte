@@ -591,15 +591,25 @@ static int init_otg_reg(struct s2mu005_muic_data *muic_data)
 static int s2mu005_muic_jig_on(struct s2mu005_muic_data *muic_data)
 {
 	bool en = muic_data->is_jig_on;
-	int reg = 0;
+	int reg = 0, temp = 0;
 
 	pr_err("[muic] %s: %s\n", __func__, en ? "on" : "off");
 
 	reg = s2mu005_i2c_read_byte(muic_data->i2c,
 		S2MU005_REG_MUIC_SW_CTRL);
 
-	if (en)
+	if (en) {
 		reg |= MANUAL_SW_JIG_EN;
+		if(muic_data->muic_version >= 3) {
+		/* 0xAF[7] = 0  when JIG connnected */
+		temp = s2mu005_i2c_read_byte(muic_data->i2c, 0xAF);
+		temp &= 0x7F;
+		s2mu005_i2c_write_byte(muic_data->i2c, 0xAF, (u8)temp);
+		temp = s2mu005_i2c_read_byte(muic_data->i2c, 0xAF);
+
+		pr_err("[muic] %s: 0xAF(0x%x)\n", __func__, temp);
+		}
+	}
 	else
 		reg &= ~(MANUAL_SW_JIG_EN);
 

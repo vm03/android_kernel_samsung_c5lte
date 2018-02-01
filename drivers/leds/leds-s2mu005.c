@@ -523,6 +523,8 @@ void ss_rear_flash_led_flash_on()
 	 struct i2c_client * client;
 	 client = g_led_datas[S2MU005_FLASH_LED]->i2c;
 
+     torch_led_on_off(0);
+
 	//s2mu005_update_reg(client,S2MU005_REG_FLED_CH1_CTRL0,0xDB,S2MU005_FLASH_IOUT_MASK);// jtt brightness has been set at probe procss in setup function
 	s2mu005_update_reg(client,CH_FLASH_TORCH_EN,S2MU005_FLASH_ON_I2C,S2MU005_FLASH_ENABLE_MASK);
 	pr_info("%s\n", __func__);

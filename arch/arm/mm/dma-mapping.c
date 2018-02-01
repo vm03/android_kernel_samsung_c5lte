@@ -151,6 +151,7 @@ static void arm_dma_unremap(struct device *dev, void *remapped_addr,
 	unsigned int flags = VM_ARM_DMA_CONSISTENT | VM_USERMAP;
 	struct vm_struct *area;
 
+	size = PAGE_ALIGN(size);
 	remapped_addr = (void *)((unsigned long)remapped_addr & PAGE_MASK);
 
 	area = find_vm_area(remapped_addr);
@@ -160,6 +161,8 @@ static void arm_dma_unremap(struct device *dev, void *remapped_addr,
 		return;
 	}
 	vunmap(remapped_addr);
+	flush_tlb_kernel_range((unsigned long)remapped_addr,
+				(unsigned long)(remapped_addr + size));
 }
 
 struct dma_map_ops arm_dma_ops = {

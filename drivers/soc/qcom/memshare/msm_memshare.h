@@ -40,10 +40,10 @@ struct mem_blocks {
 	uint32_t alloted;
 	/* Size required for client */
 	uint32_t size;
-	/* 
+	/*
 	 * start address of the memory block reserved by server memory
 	 * subsystem to client
-	*/
+	 */
 	phys_addr_t phy_addr;
 	/* Virtual address for the physical address allocated */
 	void *virtual_addr;

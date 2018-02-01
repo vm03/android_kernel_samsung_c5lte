@@ -119,7 +119,7 @@ enum {
 #define REDUCE_CURRENT_STEP				50
 #define MINIMUM_INPUT_CURRENT			300
 
-#if defined(CONFIG_MACH_GTEL_USA_VZW) || defined(CONFIG_MACH_GTELWIFI_USA_OPEN)
+#if defined(CONFIG_MACH_GTEL_USA_VZW) || defined(CONFIG_MACH_GTELWIFI_USA_OPEN) || defined(CONFIG_MACH_GTS210VELTE_USA_VZW)
 #define SLOW_CHARGING_CURRENT_STANDARD	1050
 #else
 #define SLOW_CHARGING_CURRENT_STANDARD	999
@@ -130,6 +130,11 @@ enum {
 #else
 #define SIOP_INPUT_LIMIT_CURRENT		1200
 #endif
+
+#define ENABLE 1
+#define DISABLE 0
+
+extern bool sec_bat_get_slate_mode(void);
 
 extern sec_battery_platform_data_t sec_battery_pdata;
 

@@ -283,8 +283,10 @@ int __init sec_debug_summary_init(void)
 	sec_debug_summary_set_kloginfo(&secdbg_apss->log.first_idx_paddr,
 		&secdbg_apss->log.next_idx_paddr,
 		&secdbg_apss->log.log_paddr, &secdbg_apss->log.size);
-	    
+
+#if (defined CONFIG_SEC_DEBUG && defined CONFIG_ANDROID_LOGGER)
 	sec_debug_summary_set_logger_info(&secdbg_apss->logger_log);
+#endif
 	    
 	secdbg_apss->tz_core_dump =
 		(struct msm_dump_data **)get_wdog_regsave_paddr();

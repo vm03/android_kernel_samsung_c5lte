@@ -749,24 +749,24 @@ try_again:
 				host->ocr &= ~R4_18V_PRESENT;
 			} else if (oldcard && mmc_card_uhs(oldcard)) {
 				/*
-				* if it's an old uhs card then CMD11 is
-				* expected to fail with no response
-				* according to spec. Thus in that case
-				* switch only controller signal voltage
-				* to 1.8V
-				*/
+				 * if it's an old uhs card then CMD11 is
+				 * expected to fail with no response
+				 * according to spec. Thus in that case
+				 * switch only controller signal voltage
+				 * to 1.8V
+				 */
 				err = __mmc_set_signal_voltage(host,
-					MMC_SIGNAL_VOLTAGE_180);
+						MMC_SIGNAL_VOLTAGE_180);
 				if (err == -EAGAIN) {
 					pr_err("%s: Signal voltage switch failed power cycling card, err=%d\n",
-					mmc_hostname(host), err);
+						mmc_hostname(host), err);
 					mmc_power_cycle(host);
 					sdio_reset(host);
 					mmc_go_idle(host);
 					mmc_send_if_cond(host, host->ocr_avail);
 					mmc_remove_card(card);
 					retries--;
-				goto try_again;
+					goto try_again;
 				}
 			}
 		}
@@ -1079,7 +1079,7 @@ static int mmc_sdio_resume(struct mmc_host *host)
 			sdio_reset(host);
 			mmc_go_idle(host);
 			err = mmc_sdio_init_card(host, host->ocr, host->card,
-				mmc_card_keep_power(host));
+						mmc_card_keep_power(host));
 		}
 	} else if (mmc_card_keep_power(host) && mmc_card_wake_sdio_irq(host)) {
 		/* We may have switched to 1-bit mode during suspend */

@@ -569,13 +569,13 @@ static int syslog_action_restricted(int type)
 	       type != SYSLOG_ACTION_SIZE_BUFFER;
 }
 
-static int check_syslog_permissions(int type, bool from_file)
+int check_syslog_permissions(int type, int source)
 {
 	/*
 	 * If this is from /proc/kmsg and we've already opened it, then we've
 	 * already done the capabilities checks at open time.
 	 */
-	if (from_file && type != SYSLOG_ACTION_OPEN)
+	if (source == SYSLOG_FROM_PROC && type != SYSLOG_ACTION_OPEN)
 		return 0;
 
 	if (syslog_action_restricted(type)) {
@@ -596,7 +596,7 @@ static int check_syslog_permissions(int type, bool from_file)
 	}
 	return security_syslog(type);
 }
-
+EXPORT_SYMBOL_GPL(check_syslog_permissions);
 
 /* /dev/kmsg - userspace message inject/listen interface */
 struct devkmsg_user {
@@ -1508,13 +1508,13 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 	return len;
 }
 
-int do_syslog(int type, char __user *buf, int len, bool from_file)
+int do_syslog(int type, char __user *buf, int len, int source)
 {
 	bool clear = false;
 	static int saved_console_loglevel = -1;
 	int error;
 
-	error = check_syslog_permissions(type, from_file);
+	error = check_syslog_permissions(type, source);
 	if (error)
 		goto out;
 
@@ -1601,7 +1601,7 @@ int do_syslog(int type, char __user *buf, int len, bool from_file)
 			syslog_prev = 0;
 			syslog_partial = 0;
 		}
-		if (from_file) {
+		if (source == SYSLOG_FROM_PROC) {
 			/*
 			 * Short-cut for poll(/"proc/kmsg") which simply checks
 			 * for pending data, not the size; return the count of

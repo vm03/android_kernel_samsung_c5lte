@@ -47,6 +47,12 @@
 #include "sd_ops.h"
 #include "sdio_ops.h"
 
+#ifdef CONFIG_MMC_SUPPORT_STLOG
+#include <linux/stlog.h>
+#else
+#define ST_LOG(fmt,...)
+#endif
+
 /* If the device is not responding */
 #define MMC_CORE_TIMEOUT_MS	(10 * 60 * 1000) /* 10 minute timeout */
 
@@ -2367,11 +2373,11 @@ static inline void mmc_bus_put(struct mmc_host *host)
 int mmc_resume_bus(struct mmc_host *host)
 {
 	unsigned long flags;
+	int err = 0;
 
 	if (!mmc_bus_needs_resume(host))
 		return -EINVAL;
 
-	printk("%s: Starting deferred resume\n", mmc_hostname(host));
 	spin_lock_irqsave(&host->lock, flags);
 	host->bus_resume_flags &= ~MMC_BUSRESUME_NEEDS_RESUME;
 	host->rescan_disable = 0;
@@ -2382,10 +2388,18 @@ int mmc_resume_bus(struct mmc_host *host)
 		mmc_power_up(host);
 		BUG_ON(!host->bus_ops->resume);
 		host->bus_ops->resume(host);
+		if (mmc_card_cmdq(host->card)) {
+			err = mmc_cmdq_halt(host, false);
+			if (err)
+				pr_err("%s: un-halt: failed: %d\n",
+				       __func__, err);
+			else
+				mmc_card_clr_suspended(host->card);
+		}
+		host->dev_status = DEV_RESUMED;
 	}
 
 	mmc_bus_put(host);
-	printk("%s: Deferred resume completed\n", mmc_hostname(host));
 	return 0;
 }
 
@@ -3738,6 +3752,7 @@ int _mmc_detect_card_removed(struct mmc_host *host)
 	if (ret) {
 		mmc_card_set_removed(host->card);
 		pr_debug("%s: card remove detected\n", mmc_hostname(host));
+		ST_LOG("<%s> %s: card remove detected\n", __func__,mmc_hostname(host));
 	}
 
 	return ret;
@@ -3840,6 +3855,9 @@ void mmc_rescan(struct work_struct *work)
 		goto out;
 	}
 
+#if !defined(CONFIG_SEC_HYBRID_TRAY)
+	ST_LOG("<%s> %s insertion detected",__func__,host->class_dev.kobj.name);
+#endif
 	mmc_rpm_hold(host, &host->class_dev);
 	mmc_claim_host(host);
 	if (!mmc_rescan_try_freq(host, host->f_min))
@@ -4069,6 +4087,14 @@ int mmc_suspend_host(struct mmc_host *host)
 		if (host->ops->notify_pm_status)
 			host->ops->notify_pm_status(host, DEV_SUSPENDING);
 		/*
+		 * Disable clock scaling before suspend and enable it after
+		 * resume so as to avoid clock scaling decisions kicking in
+		 * during this window.
+		 */
+		if (mmc_can_scale_clk(host))
+			mmc_disable_clk_scaling(host);
+
+		/*
 		 * A long response time is not acceptable for device drivers
 		 * when doing suspend. Prevent mmc_claim_host in the suspend
 		 * sequence, to potentially wait "forever" by trying to
@@ -4131,6 +4157,8 @@ int mmc_suspend_host(struct mmc_host *host)
 		mmc_release_host(host);
 	}
 
+	if (err && mmc_can_scale_clk(host))
+		mmc_init_clk_scaling(host);
 	trace_mmc_suspend_host(mmc_hostname(host), err,
 			ktime_to_us(ktime_sub(ktime_get(), start)));
 	if (host->ops->notify_pm_status)

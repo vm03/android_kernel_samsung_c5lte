@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -51,7 +51,8 @@
 #define MSM8X16_WCD_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
 			SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000)
 #define MSM8X16_WCD_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |\
-		SNDRV_PCM_FMTBIT_S24_LE)
+		SNDRV_PCM_FMTBIT_S24_LE |\
+		SNDRV_PCM_FMTBIT_S24_3LE)
 
 #define NUM_INTERPOLATORS	3
 #define BITS_PER_REG		8
@@ -1159,10 +1160,32 @@ static int __msm8x16_wcd_reg_read(struct snd_soc_codec *codec,
 	else if (MSM8X16_WCD_IS_DIGITAL_REG(reg)) {
 		mutex_lock(&pdata->cdc_mclk_mutex);
 		if (atomic_read(&pdata->mclk_enabled) == false) {
-			pdata->digital_cdc_clk.clk_val = pdata->mclk_freq;
-			ret = afe_set_digital_codec_core_clock(
+			switch (q6core_get_avs_version()) {
+			case Q6_SUBSYS_AVS2_6:
+			{
+				pdata->digital_cdc_clk.clk_val =
+						pdata->mclk_freq;
+				ret = afe_set_digital_codec_core_clock(
 					AFE_PORT_ID_PRIMARY_MI2S_RX,
 					&pdata->digital_cdc_clk);
+					break;
+			}
+			case Q6_SUBSYS_AVS2_7:
+			{
+				pdata->digital_cdc_core_clk.enable = 1;
+				ret = afe_set_lpass_clock_v2(
+					AFE_PORT_ID_PRIMARY_MI2S_RX,
+					&pdata->digital_cdc_core_clk);
+					break;
+			}
+			case Q6_SUBSYS_INVALID:
+			default:
+			{
+				pr_err("%s: unknown dsp image\n",
+							__func__);
+				break;
+			}
+			}
 			if (ret < 0) {
 				pr_err("failed to enable the MCLK\n");
 				goto err;
@@ -1211,9 +1234,26 @@ static int __msm8x16_wcd_reg_write(struct snd_soc_codec *codec,
 		if (atomic_read(&pdata->mclk_enabled) == false) {
 			pr_debug("enable MCLK for AHB write %s:\n", __func__);
 			pdata->digital_cdc_clk.clk_val = pdata->mclk_freq;
-			ret = afe_set_digital_codec_core_clock(
+			switch (q6core_get_avs_version()) {
+			case Q6_SUBSYS_AVS2_6:
+				pdata->digital_cdc_clk.clk_val =
+					pdata->mclk_freq;
+				ret = afe_set_digital_codec_core_clock(
 					AFE_PORT_ID_PRIMARY_MI2S_RX,
 					&pdata->digital_cdc_clk);
+				break;
+			case Q6_SUBSYS_AVS2_7:
+				pdata->digital_cdc_core_clk.enable = 1;
+				ret = afe_set_lpass_clock_v2(
+					AFE_PORT_ID_PRIMARY_MI2S_RX,
+					&pdata->digital_cdc_core_clk);
+				break;
+			case Q6_SUBSYS_INVALID:
+			default:
+				pr_err("%s: enable clk failed\n",
+							__func__);
+				break;
+			}
 			if (ret < 0) {
 				pr_err("failed to enable the MCLK\n");
 				ret = 0;
@@ -1923,6 +1963,13 @@ static int msm8x16_wcd_codec_enable_charge_pump(struct snd_soc_dapm_widget *w,
 					__func__, msm8x16_wcd->boost_option);
 				msm8x16_wcd_boost_mode_sequence(codec, EAR_PMD);
 			}
+			/*
+			 * Reset pa select bit from ear to hph after ear pa
+			 * is disabled and HPH DAC disable to reduce ear
+			 * turn off pop and avoid HPH pop in concurrency
+			 */
+			snd_soc_update_bits(codec,
+				MSM8X16_WCD_A_ANALOG_RX_EAR_CTL, 0x80, 0x00);
 		} else {
 			snd_soc_update_bits(codec,
 					MSM8X16_WCD_A_DIGITAL_CDC_DIG_CLK_CTL,
@@ -3419,6 +3466,10 @@ static int msm8x16_wcd_codec_enable_micbias(struct snd_soc_dapm_widget *w,
 	micbias2 = (snd_soc_read(codec, MSM8X16_WCD_A_ANALOG_MICB_2_EN) & 0x80);
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
+		if ((msm8x16_wcd->tx1n_gnd_sel) &&
+			strnstr(w->name, "MIC BIAS External", strlen(w->name))) {
+			snd_soc_update_bits(codec, micb_int_reg, 0x21, 0x21);
+		}
 		if (strnstr(w->name, internal1_text, strlen(w->name))) {
 			if (get_codec_version(msm8x16_wcd) >= CAJON)
 				snd_soc_update_bits(codec,
@@ -3457,7 +3508,7 @@ static int msm8x16_wcd_codec_enable_micbias(struct snd_soc_dapm_widget *w,
 			snd_soc_update_bits(codec, micb_int_reg, 0x08, 0x08);
 			msm8x16_notifier_call(codec,
 					WCD_EVENT_POST_MICBIAS_2_ON);
-		} else if (strnstr(w->name, internal3_text, 30)) {
+		} else if (strnstr(w->name, internal3_text, strlen(w->name))) {
 			snd_soc_update_bits(codec, micb_int_reg, 0x01, 0x01);
 		} else if (strnstr(w->name, external2_text, strlen(w->name))) {
 			msm8x16_notifier_call(codec,
@@ -3476,12 +3527,16 @@ static int msm8x16_wcd_codec_enable_micbias(struct snd_soc_dapm_widget *w,
 			}
 		}
 #endif /* CONFIG_SAMSUNG_JACK */
+		if ((msm8x16_wcd->tx1n_gnd_sel) &&
+			strnstr(w->name, "MIC BIAS External", strlen(w->name))) {
+			snd_soc_update_bits(codec, micb_int_reg, 0x21, 0x00);
+		}
 		if (strnstr(w->name, internal1_text, strlen(w->name))) {
 			snd_soc_update_bits(codec, micb_int_reg, 0xC0, 0x40);
 		} else if (strnstr(w->name, internal2_text, strlen(w->name))) {
 			msm8x16_notifier_call(codec,
 					WCD_EVENT_POST_MICBIAS_2_OFF);
-		} else if (strnstr(w->name, internal3_text, 30)) {
+		} else if (strnstr(w->name, internal3_text, strlen(w->name))) {
 			snd_soc_update_bits(codec, micb_int_reg, 0x2, 0x0);
 		} else if (strnstr(w->name, external2_text, strlen(w->name))) {
 			/*
@@ -4492,6 +4547,7 @@ static int msm8x16_wcd_hw_params(struct snd_pcm_substream *substream,
 				MSM8X16_WCD_A_CDC_CLK_RX_I2S_CTL, 0x20, 0x20);
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
+	case SNDRV_PCM_FORMAT_S24_3LE:
 		snd_soc_update_bits(dai->codec,
 				MSM8X16_WCD_A_CDC_CLK_RX_I2S_CTL, 0x20, 0x00);
 		break;
@@ -4615,17 +4671,12 @@ static int msm8x16_wcd_codec_enable_rx_chain(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		dev_dbg(w->codec->dev,
-			"%s: PMU:Sleeping 20ms after disabling mute\n",
-			__func__);
+		dev_dbg(w->codec->dev, "%s: [PMU]\n", __func__);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		dev_dbg(w->codec->dev,
-			"%s: PMD:Sleeping 20ms after disabling mute\n",
-			__func__);
+		dev_dbg(w->codec->dev, "%s: [PMD]\n", __func__);
 		snd_soc_update_bits(codec, w->reg,
 			    1 << w->shift, 0x00);
-		msleep(20);
 		break;
 	}
 	return 0;
@@ -4701,12 +4752,6 @@ static int msm8x16_wcd_codec_enable_ear_pa(struct snd_soc_dapm_widget *w,
 		snd_soc_update_bits(codec, MSM8X16_WCD_A_ANALOG_RX_EAR_CTL,
 			    0x40, 0x00);
 		usleep_range(7000, 7100);
-		/*
-		 * Reset pa select bit from ear to hph after ear pa
-		 * is disabled to reduce ear turn off pop
-		 */
-		snd_soc_update_bits(codec, MSM8X16_WCD_A_ANALOG_RX_EAR_CTL,
-			    0x80, 0x00);
 		if (get_codec_version(msm8x16_wcd) < CONGA)
 			snd_soc_update_bits(codec,
 			MSM8X16_WCD_A_ANALOG_RX_HPH_CNP_WG_TIME, 0xFF, 0x16);
@@ -5267,7 +5312,6 @@ static int msm8x16_wcd_device_up(struct snd_soc_codec *codec)
 {
 	struct msm8x16_wcd_priv *msm8x16_wcd_priv =
 		snd_soc_codec_get_drvdata(codec);
-	u32 reg;
 #ifndef CONFIG_SAMSUNG_JACK
 	int ret = 0;
 #endif
@@ -5276,36 +5320,21 @@ static int msm8x16_wcd_device_up(struct snd_soc_codec *codec)
 	mutex_lock(&codec->mutex);
 
 	clear_bit(BUS_DOWN, &msm8x16_wcd_priv->status_mask);
-
-	for (reg = 0; reg < ARRAY_SIZE(msm8x16_wcd_reset_reg_defaults);
-			reg++) {
-		if (msm8x16_wcd_reg_readable[reg]) {
-			if (get_codec_version(msm8x16_wcd_priv) != CAJON &&
-					cajon_digital_reg[reg])
-				continue;
-			msm8x16_wcd_write(codec,
-				reg, msm8x16_wcd_reset_reg_defaults[reg]);
-		}
-	}
-
-	if (codec->reg_def_copy) {
-		pr_debug("%s: Update ASOC cache", __func__);
-		kfree(codec->reg_cache);
-		codec->reg_cache = kmemdup(codec->reg_def_copy,
-						codec->reg_size, GFP_KERNEL);
-		if (!codec->reg_cache) {
-			pr_err("%s: Cache update failed!\n", __func__);
-			mutex_unlock(&codec->mutex);
-			return -ENOMEM;
-		}
-	}
-
 	snd_soc_card_change_online_state(codec->card, 1);
 	/* delay is required to make sure sound card state updated */
 	usleep_range(5000, 5100);
 
 	msm8x16_wcd_codec_init_reg(codec);
 	msm8x16_wcd_update_reg_defaults(codec);
+
+	codec->cache_sync = true;
+	snd_soc_cache_sync(codec);
+	codec->cache_sync = false;
+
+	msm8x16_wcd_write(codec, MSM8X16_WCD_A_DIGITAL_INT_EN_SET,
+				MSM8X16_WCD_A_DIGITAL_INT_EN_SET__POR);
+	msm8x16_wcd_write(codec, MSM8X16_WCD_A_DIGITAL_INT_EN_CLR,
+				MSM8X16_WCD_A_DIGITAL_INT_EN_CLR__POR);
 
 	msm8x16_wcd_set_boost_v(codec);
 
@@ -5576,6 +5605,18 @@ static int msm8x16_wcd_codec_probe(struct snd_soc_codec *codec)
 	msm8x16_wcd_priv->mclk_enabled = false;
 	msm8x16_wcd_priv->clock_active = false;
 	msm8x16_wcd_priv->config_mode_active = false;
+
+	/* 
+	* for J7109 TDMA noise
+	* 0x143, bit[0]:TX3_INT_PULLUP_EN : 1 
+	* 0x143, bit[5]:TX1N_GND_SEL : 1
+	*/
+	if (of_find_property(codec->dev->of_node,
+		"qcom,tx1n_to_hph_ref", NULL))
+		msm8x16_wcd_priv->tx1n_gnd_sel = true;
+	else
+		msm8x16_wcd_priv->tx1n_gnd_sel = false;	
+
 #ifdef CONFIG_SAMSUNG_JACK
 	msm8x16_wcd_priv->micb_2_ref_cnt = 0;
 #endif  /* CONFIG_SAMSUNG_JACK */
@@ -5682,6 +5723,7 @@ static int msm8x16_wcd_disable_static_supplies_to_optimum(
 
 int msm8x16_wcd_suspend(struct snd_soc_codec *codec)
 {
+	int ret = 0;
 	struct msm8916_asoc_mach_data *pdata = NULL;
 	struct msm8x16_wcd *msm8x16 = codec->control_data;
 	struct msm8x16_wcd_pdata *msm8x16_pdata = msm8x16->dev->platform_data;
@@ -5695,10 +5737,24 @@ int msm8x16_wcd_suspend(struct snd_soc_codec *codec)
 				&pdata->disable_mclk_work);
 		mutex_lock(&pdata->cdc_mclk_mutex);
 		if (atomic_read(&pdata->mclk_enabled) == true) {
-			pdata->digital_cdc_clk.clk_val = 0;
-			afe_set_digital_codec_core_clock(
+			switch (q6core_get_avs_version()) {
+			case Q6_SUBSYS_AVS2_6:
+				pdata->digital_cdc_clk.clk_val = 0;
+				ret = afe_set_digital_codec_core_clock(
 					AFE_PORT_ID_PRIMARY_MI2S_RX,
 					&pdata->digital_cdc_clk);
+				break;
+			case Q6_SUBSYS_AVS2_7:
+				pdata->digital_cdc_core_clk.enable = 0;
+				ret = afe_set_lpass_clock_v2(
+					AFE_PORT_ID_PRIMARY_MI2S_RX,
+					&pdata->digital_cdc_core_clk);
+				break;
+			case Q6_SUBSYS_INVALID:
+			default:
+				pr_err("%s: disable clk failed\n", __func__);
+				break;
+			}
 			atomic_set(&pdata->mclk_enabled, false);
 		}
 		mutex_unlock(&pdata->cdc_mclk_mutex);
@@ -5888,6 +5944,13 @@ static int msm8x16_wcd_spmi_probe(struct spmi_device *spmi)
 		return -EPROBE_DEFER;
 	}
 
+	ret = core_get_adsp_ver();
+	if (ret < 0) {
+		dev_err(&spmi->dev, "%s: Get adsp version failed %d\n",
+			__func__, ret);
+		ret = -EPROBE_DEFER;
+		goto rtn;
+	}
 	wcd_resource = spmi_get_resource(spmi, NULL, IORESOURCE_MEM, 0);
 	if (!wcd_resource) {
 		dev_err(&spmi->dev, "Unable to get Tombak base address\n");
@@ -5921,7 +5984,7 @@ static int msm8x16_wcd_spmi_probe(struct spmi_device *spmi)
 	}
 
 
-	dev_dbg(&spmi->dev, "%s(%d):start addr = 0x%pa\n",
+	dev_dbg(&spmi->dev, "%s(%d):start addr = 0x%pK\n",
 		__func__, __LINE__,  &wcd_resource->start);
 
 	if (wcd_resource->start != TOMBAK_CORE_0_SPMI_ADDR)

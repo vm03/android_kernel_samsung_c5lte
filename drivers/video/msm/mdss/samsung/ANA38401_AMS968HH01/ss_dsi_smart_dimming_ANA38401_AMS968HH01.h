@@ -204,7 +204,6 @@ struct SMART_DIM {
 	int ldi_revision;
 } __packed;
 
-
 #define CANDELA_MAX_TABLE 64
 #define RGB_COMPENSATION 24
 

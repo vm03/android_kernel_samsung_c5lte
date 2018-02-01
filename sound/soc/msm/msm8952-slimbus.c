@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -126,6 +126,9 @@ static struct wcd_mbhc_config wcd_mbhc_cfg = {
 	.key_code[6] = 0,
 	.key_code[7] = 0,
 	.linein_th = 5000,
+	.mbhc_micbias = MIC_BIAS_2,
+	.anc_micbias = MIC_BIAS_2,
+	.enable_anc_mic_detect = false,
 };
 
 static struct wcd9xxx_mbhc_config wcd9xxx_mbhc_cfg = {
@@ -312,7 +315,6 @@ struct msm8952_asoc_mach_data {
 	void __iomem *vaddr_gpio_mux_spkr_ctl;
 	void __iomem *vaddr_gpio_mux_mic_ctl;
 	void __iomem *vaddr_gpio_mux_pcm_ctl;
-	void __iomem *vaddr_gpio_mux_sec_pcm_ctl;
 	void __iomem *vaddr_gpio_mux_quin_ctl;
 };
 
@@ -519,6 +521,10 @@ static int mi2s_rx_bit_format_get(struct snd_kcontrol *kcontrol,
 {
 
 	switch (mi2s_rx_bit_format) {
+	case SNDRV_PCM_FORMAT_S24_3LE:
+		ucontrol->value.integer.value[0] = 2;
+		break;
+
 	case SNDRV_PCM_FORMAT_S24_LE:
 		ucontrol->value.integer.value[0] = 1;
 		break;
@@ -540,6 +546,9 @@ static int mi2s_rx_bit_format_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	switch (ucontrol->value.integer.value[0]) {
+	case 2:
+		mi2s_rx_bit_format = SNDRV_PCM_FORMAT_S24_3LE;
+		break;
 	case 1:
 		mi2s_rx_bit_format = SNDRV_PCM_FORMAT_S24_LE;
 		break;
@@ -614,6 +623,10 @@ static int slim5_rx_bit_format_get(struct snd_kcontrol *kcontrol,
 {
 
 	switch (slim5_rx_bit_format) {
+	case SNDRV_PCM_FORMAT_S24_3LE:
+		ucontrol->value.integer.value[0] = 2;
+		break;
+
 	case SNDRV_PCM_FORMAT_S24_LE:
 		ucontrol->value.integer.value[0] = 1;
 		break;
@@ -635,6 +648,9 @@ static int slim5_rx_bit_format_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	switch (ucontrol->value.integer.value[0]) {
+	case 2:
+		slim5_rx_bit_format = SNDRV_PCM_FORMAT_S24_3LE;
+		break;
 	case 1:
 		slim5_rx_bit_format = SNDRV_PCM_FORMAT_S24_LE;
 		break;
@@ -651,6 +667,10 @@ static int slim0_rx_bit_format_get(struct snd_kcontrol *kcontrol,
 {
 
 	switch (slim0_rx_bit_format) {
+	case SNDRV_PCM_FORMAT_S24_3LE:
+		ucontrol->value.integer.value[0] = 2;
+		break;
+
 	case SNDRV_PCM_FORMAT_S24_LE:
 		ucontrol->value.integer.value[0] = 1;
 		break;
@@ -672,6 +692,9 @@ static int slim0_rx_bit_format_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	switch (ucontrol->value.integer.value[0]) {
+	case 2:
+		slim0_rx_bit_format = SNDRV_PCM_FORMAT_S24_3LE;
+		break;
 	case 1:
 		slim0_rx_bit_format = SNDRV_PCM_FORMAT_S24_LE;
 		break;
@@ -725,6 +748,9 @@ static int slim0_tx_bit_format_get(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
 	switch (slim0_tx_bit_format) {
+	case SNDRV_PCM_FORMAT_S24_3LE:
+		ucontrol->value.integer.value[0] = 2;
+		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
 		ucontrol->value.integer.value[0] = 1;
 		break;
@@ -745,6 +771,9 @@ static int slim0_tx_bit_format_put(struct snd_kcontrol *kcontrol,
 	int rc = 0;
 
 	switch (ucontrol->value.integer.value[0]) {
+	case 2:
+		slim0_tx_bit_format = SNDRV_PCM_FORMAT_S24_3LE;
+		break;
 	case 1:
 		slim0_tx_bit_format = SNDRV_PCM_FORMAT_S24_LE;
 		break;
@@ -895,34 +924,6 @@ static int msm_btsco_rate_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int msm_auxpcm_rate_get(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
-{
-	pr_debug("%s: msm8952_auxpcm_rate  = %d", __func__,
-						msm8952_auxpcm_rate);
-	ucontrol->value.integer.value[0] = msm8952_auxpcm_rate;
-	return 0;
-}
-
-static int msm_auxpcm_rate_put(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
-{
-	switch (ucontrol->value.integer.value[0]) {
-	case RATE_8KHZ_ID:
-		msm8952_auxpcm_rate = BTSCO_RATE_8KHZ;
-		break;
-	case RATE_16KHZ_ID:
-		msm8952_auxpcm_rate = BTSCO_RATE_16KHZ;
-		break;
-	default:
-		msm8952_auxpcm_rate = BTSCO_RATE_8KHZ;
-		break;
-	}
-
-	pr_err("%s: msm8952_auxpcm_rate = %d\n", __func__, msm8952_auxpcm_rate);
-	return 0;
-}
-
 static int msm_proxy_rx_ch_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
@@ -947,13 +948,13 @@ static const char *const slim0_tx_ch_text[] = {"One", "Two", "Three", "Four",
 						"Five", "Six", "Seven",
 						"Eight"};
 static const char *const vi_feed_ch_text[] = {"One", "Two"};
-static char const *rx_bit_format_text[] = {"S16_LE", "S24_LE"};
+static char const *rx_bit_format_text[] = {"S16_LE", "S24_LE", "S24_3LE"};
 static char const *slim0_rx_sample_rate_text[] = {"KHZ_48", "KHZ_96",
 					"KHZ_192", "KHZ_44P1"};
 static const char *const slim5_rx_ch_text[] = {"One", "Two"};
 static char const *slim5_rx_sample_rate_text[] = {"KHZ_48", "KHZ_96",
 	"KHZ_192", "KHZ_44P1"};
-static char const *slim5_rx_bit_format_text[] = {"S16_LE", "S24_LE"};
+static char const *slim5_rx_bit_format_text[] = {"S16_LE", "S24_LE", "S24_3LE"};
 static const char *const proxy_rx_ch_text[] = {"One", "Two", "Three", "Four",
 	"Five", "Six", "Seven", "Eight"};
 
@@ -961,12 +962,13 @@ static const struct soc_enum msm_snd_enum[] = {
 	SOC_ENUM_SINGLE_EXT(2, spk_function),
 	SOC_ENUM_SINGLE_EXT(2, slim0_rx_ch_text),
 	SOC_ENUM_SINGLE_EXT(8, slim0_tx_ch_text),
-	SOC_ENUM_SINGLE_EXT(2, rx_bit_format_text),
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(rx_bit_format_text), rx_bit_format_text),
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(slim0_rx_sample_rate_text),
 				slim0_rx_sample_rate_text),
 	SOC_ENUM_SINGLE_EXT(2, vi_feed_ch_text),
 	SOC_ENUM_SINGLE_EXT(4, slim5_rx_sample_rate_text),
-	SOC_ENUM_SINGLE_EXT(2, slim5_rx_bit_format_text),
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(slim5_rx_bit_format_text),
+			    slim5_rx_bit_format_text),
 	SOC_ENUM_SINGLE_EXT(2, slim5_rx_ch_text),
 	SOC_ENUM_SINGLE_EXT(8, proxy_rx_ch_text),
 };
@@ -1006,8 +1008,6 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 			slim0_tx_bit_format_get, slim0_tx_bit_format_put),
 	SOC_ENUM_EXT("Internal BTSCO SampleRate", msm_btsco_enum[0],
 		     msm_btsco_rate_get, msm_btsco_rate_put),
-	SOC_ENUM_EXT("AUXPCM SampleRate", msm_btsco_enum[0],
-		     msm_auxpcm_rate_get, msm_auxpcm_rate_put),
 	SOC_ENUM_EXT("PROXY_RX Channels", msm_snd_enum[9],
 			msm_proxy_rx_ch_get, msm_proxy_rx_ch_put),
 };
@@ -1538,7 +1538,10 @@ static int quat_mi2s_clk_ctl(struct snd_pcm_substream *substream, bool enable)
 
 	if (enable) {
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			if (mi2s_rx_bit_format == SNDRV_PCM_FORMAT_S24_LE)
+                      mi2s_rx_clk.clk_val2 = Q6AFE_LPASS_OSR_CLK_12_P288_MHZ;
+			if ((mi2s_rx_bit_format == SNDRV_PCM_FORMAT_S24_LE) ||
+				(mi2s_rx_bit_format ==
+						SNDRV_PCM_FORMAT_S24_3LE))
 				mi2s_rx_clk.clk_val1 =
 					Q6AFE_LPASS_IBIT_CLK_3_P072_MHZ;
 			else
@@ -1549,6 +1552,7 @@ static int quat_mi2s_clk_ctl(struct snd_pcm_substream *substream, bool enable)
 					&mi2s_rx_clk);
 		} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 			mi2s_tx_clk.clk_val1 = Q6AFE_LPASS_IBIT_CLK_1_P536_MHZ;
+			mi2s_tx_clk.clk_val2 = Q6AFE_LPASS_OSR_CLK_12_P288_MHZ;
 			ret = afe_set_lpass_clock(
 					AFE_PORT_ID_QUATERNARY_MI2S_TX,
 					&mi2s_tx_clk);
@@ -1562,11 +1566,13 @@ static int quat_mi2s_clk_ctl(struct snd_pcm_substream *substream, bool enable)
 	} else {
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			mi2s_rx_clk.clk_val1 = Q6AFE_LPASS_IBIT_CLK_DISABLE;
+			mi2s_rx_clk.clk_val2 = Q6AFE_LPASS_OSR_CLK_DISABLE;
 			ret = afe_set_lpass_clock(
 				AFE_PORT_ID_QUATERNARY_MI2S_RX,
 				&mi2s_rx_clk);
 		} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 			mi2s_tx_clk.clk_val1 = Q6AFE_LPASS_IBIT_CLK_DISABLE;
+			mi2s_tx_clk.clk_val2 = Q6AFE_LPASS_OSR_CLK_DISABLE;
 			ret = afe_set_lpass_clock(
 				AFE_PORT_ID_QUATERNARY_MI2S_TX,
 				&mi2s_tx_clk);
@@ -1587,7 +1593,10 @@ static int quin_mi2s_sclk_ctl(struct snd_pcm_substream *substream, bool enable)
 
 	if (enable) {
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			if (mi2s_rx_bit_format == SNDRV_PCM_FORMAT_S24_LE)
+                      mi2s_rx_clk.clk_val2 = Q6AFE_LPASS_OSR_CLK_12_P288_MHZ;
+                      if ((mi2s_rx_bit_format == SNDRV_PCM_FORMAT_S24_LE) ||
+				(mi2s_rx_bit_format ==
+					SNDRV_PCM_FORMAT_S24_3LE))
 				mi2s_rx_clk.clk_val1 =
 					Q6AFE_LPASS_IBIT_CLK_3_P072_MHZ;
 			else
@@ -1598,6 +1607,7 @@ static int quin_mi2s_sclk_ctl(struct snd_pcm_substream *substream, bool enable)
 					&mi2s_rx_clk);
 		} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 			mi2s_tx_clk.clk_val1 = Q6AFE_LPASS_IBIT_CLK_1_P536_MHZ;
+			mi2s_tx_clk.clk_val2 = Q6AFE_LPASS_OSR_CLK_12_P288_MHZ;
 			ret = afe_set_lpass_clock(
 					AFE_PORT_ID_QUINARY_MI2S_TX,
 					&mi2s_tx_clk);
@@ -1611,11 +1621,13 @@ static int quin_mi2s_sclk_ctl(struct snd_pcm_substream *substream, bool enable)
 	} else {
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			mi2s_rx_clk.clk_val1 = Q6AFE_LPASS_IBIT_CLK_DISABLE;
+			mi2s_rx_clk.clk_val2 = Q6AFE_LPASS_OSR_CLK_DISABLE;
 			ret = afe_set_lpass_clock(
 					AFE_PORT_ID_QUINARY_MI2S_RX,
 					&mi2s_rx_clk);
 		} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 			mi2s_tx_clk.clk_val1 = Q6AFE_LPASS_IBIT_CLK_DISABLE;
+			mi2s_tx_clk.clk_val2 = Q6AFE_LPASS_OSR_CLK_DISABLE;
 			ret = afe_set_lpass_clock(
 					AFE_PORT_ID_QUINARY_MI2S_TX,
 					&mi2s_tx_clk);
@@ -1721,55 +1733,6 @@ void msm_prim_auxpcm_shutdown(struct snd_pcm_substream *substream)
 		pr_err("%s(): configure gpios failed = %s\n",
 				__func__, "quat_i2s");
 }
-
-/*
-int msm_sec_auxpcm_startup(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_card *card = rtd->card;
-	struct msm8952_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
-	int ret = 0, val = 0;
-
-	pr_debug("%s(): substream = %s\n",
-			__func__, substream->name);
-
-	if (pdata->vaddr_gpio_mux_quin_ctl) {
-		val = ioread32(pdata->vaddr_gpio_mux_quin_ctl);
-		val = val | 0x1;
-		iowrite32(val, pdata->vaddr_gpio_mux_quin_ctl);
-	}
-	if (pdata->vaddr_gpio_mux_sec_pcm_ctl) {
-		val = ioread32(pdata->vaddr_gpio_mux_sec_pcm_ctl);
-		val = val | 0x1;
-		iowrite32(val, pdata->vaddr_gpio_mux_sec_pcm_ctl);
-	}
-	atomic_inc(&pdata->clk_ref.sec_auxpcm_mi2s_clk_ref);
-
-	// enable the gpio's used for the external AUXPCM interface 
-	ret = msm_gpioset_activate(CLIENT_WCD_EXT, "quin_i2s");
-	if (ret < 0)
-		pr_err("%s(): configure gpios failed = %s\n",
-				__func__, "quin_i2s");
-	return ret;
-}
-
-void msm_sec_auxpcm_shutdown(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_card *card = rtd->card;
-	struct msm8952_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
-	int ret;
-
-	pr_debug("%s(): substream = %s\n",
-			__func__, substream->name);
-	if (atomic_read(&pdata->clk_ref.sec_auxpcm_mi2s_clk_ref) > 0)
-		atomic_dec(&pdata->clk_ref.sec_auxpcm_mi2s_clk_ref);
-	ret = msm_gpioset_suspend(CLIENT_WCD_EXT, "quin_i2s");
-	if (ret < 0)
-		pr_err("%s(): configure gpios failed = %s\n",
-				__func__, "quin_i2s");
-}
-*/
 
 int msm_quat_mi2s_snd_startup(struct snd_pcm_substream *substream)
 {
@@ -2459,29 +2422,13 @@ static int msm8952_asoc_machine_probe(struct platform_device *pdev)
 	muxsel = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 			"csr_gp_io_lpaif_pri_pcm_pri_mode_muxsel");
 	if (!muxsel) {
-		dev_err(&pdev->dev, "MUX addr invalid for PRI PCM\n");
+		dev_err(&pdev->dev, "MUX addr invalid for QUAT I2S\n");
 		ret = -ENODEV;
 		goto err;
 	}
 	pdata->vaddr_gpio_mux_pcm_ctl =
 		ioremap(muxsel->start, resource_size(muxsel));
 	if (pdata->vaddr_gpio_mux_pcm_ctl == NULL) {
-		pr_err("%s ioremap failure for muxsel virt addr\n",
-				__func__);
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	muxsel = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-			"csr_gp_io_lpaif_sec_pcm_sec_mode_muxsel");
-	if (!muxsel) {
-		dev_err(&pdev->dev, "MUX addr invalid for SEC AUXPCM\n");
-		ret = -ENODEV;
-		goto err;
-	}
-	pdata->vaddr_gpio_mux_sec_pcm_ctl =
-		ioremap(muxsel->start, resource_size(muxsel));
-	if (pdata->vaddr_gpio_mux_sec_pcm_ctl == NULL) {
 		pr_err("%s ioremap failure for muxsel virt addr\n",
 				__func__);
 		ret = -ENOMEM;
@@ -2525,7 +2472,6 @@ static int msm8952_asoc_machine_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&pdata->hs_detect_dwork, hs_detect_work);
 	atomic_set(&pdata->clk_ref.quat_mi2s_clk_ref, 0);
 	atomic_set(&pdata->clk_ref.auxpcm_mi2s_clk_ref, 0);
-	atomic_set(&pdata->clk_ref.sec_auxpcm_mi2s_clk_ref, 0);
 	card = populate_snd_card_dailinks(&pdev->dev);
 	if (!card) {
 		dev_err(&pdev->dev, "%s: Card uninitialized\n", __func__);
@@ -2546,6 +2492,13 @@ static int msm8952_asoc_machine_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	ret = core_get_adsp_ver();
+	if (ret < 0) {
+		ret = -EPROBE_DEFER;
+		dev_dbg(&pdev->dev, "%s: Get adsp version failed (%d)\n",
+						__func__, ret);
+		goto err;
+	}
 	ret = snd_soc_register_card(card);
 	if (ret) {
 		if (codec_reg_done)

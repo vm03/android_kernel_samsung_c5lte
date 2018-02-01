@@ -54,22 +54,22 @@
 		battery,temp_check_count = <1>;
 		battery,temp_highlimit_threshold_event = <800>;
 		battery,temp_highlimit_recovery_event = <750>;
-		battery,temp_high_threshold_event = <550>;
-		battery,temp_high_recovery_event = <500>;
-		battery,temp_low_threshold_event = <(-50)>;
-		battery,temp_low_recovery_event = <0>;
+		battery,temp_high_threshold_event = <500>;
+		battery,temp_high_recovery_event = <450>;
+		battery,temp_low_threshold_event = <(0)>;
+		battery,temp_low_recovery_event = <50>;
 		battery,temp_highlimit_threshold_normal = <800>;
 		battery,temp_highlimit_recovery_normal = <750>;
-		battery,temp_high_threshold_normal = <550>;
-		battery,temp_high_recovery_normal = <500>;
-		battery,temp_low_threshold_normal = <(-50)>;
-		battery,temp_low_recovery_normal = <0>;
+		battery,temp_high_threshold_normal = <500>;
+		battery,temp_high_recovery_normal = <450>;
+		battery,temp_low_threshold_normal = <(0)>;
+		battery,temp_low_recovery_normal = <50>;
 		battery,temp_highlimit_threshold_lpm = <800>;
 		battery,temp_highlimit_recovery_lpm = <750>;
-		battery,temp_high_threshold_lpm = <550>;
-		battery,temp_high_recovery_lpm = <500>;
-		battery,temp_low_threshold_lpm = <(-50)>;
-		battery,temp_low_recovery_lpm = <0>;
+		battery,temp_high_threshold_lpm = <500>;
+		battery,temp_high_recovery_lpm = <450>;
+		battery,temp_low_threshold_lpm = <(0)>;
+		battery,temp_low_recovery_lpm = <50>;
 		battery,full_check_type = <2>; /* SEC_BATTERY_FULLCHARGED_FG_CURRENT */
 		battery,full_check_type_2nd = <2>; /* SEC_BATTERY_FULLCHARGED_FG_CURRENT */
 		battery,full_check_count = <1>;
@@ -89,12 +89,12 @@
 		   SEC_BATTERY_FULL_CONDITION_VCELL */
 		battery,full_condition_type = <13>;
 		battery,full_condition_soc = <93>;
-		battery,full_condition_vcell = <4300>;
+		battery,full_condition_vcell = <4250>;
 
 		battery,recharge_check_count = <1>;
 		battery,recharge_condition_type = <4>; /* SEC_BATTERY_RECHARGE_CONDITION_VCELL */
 		battery,recharge_condition_soc = <98>;
-		battery,recharge_condition_vcell = <4330>;
+		battery,recharge_condition_vcell = <4300>;
 
 		//battery,self_discharging_en;
 		battery,self_discharging_type = <2>;	/* SEC_BAT_SELF_DISCHARGING_BY_CHG */
@@ -111,17 +111,17 @@
 		battery,recharging_total_time = <5400>;
 		battery,charging_reset_time = <0>;
 
-		battery,swelling_high_temp_block = <500>;
-		battery,swelling_high_temp_recov = <450>;
-		battery,swelling_low_temp_block = <50>;
-		battery,swelling_low_temp_recov = <100>;
+		battery,swelling_high_temp_block = <410>;
+		battery,swelling_high_temp_recov = <360>;
+		battery,swelling_low_temp_block = <100>;
+		battery,swelling_low_temp_recov = <150>;
 		//battery,swelling_chg_current = <1500>;
-		battery,swelling_high_chg_current = <2950>;
-		battery,swelling_low_chg_current = <2500>;
+		battery,swelling_high_chg_current = <1800>;
+		battery,swelling_low_chg_current = <1800>;
 		battery,swelling_full_check_current_2nd = <200>;
-		battery,swelling_drop_float_voltage = <4210>;
-		battery,swelling_high_rechg_voltage = <4150>;
-		battery,swelling_low_rechg_voltage = <4050>;
+		battery,swelling_drop_float_voltage = <4150>;
+		battery,swelling_high_rechg_voltage = <4000>;
+		battery,swelling_low_rechg_voltage = <4000>;
 		battery,swelling_block_time = <600>;
 
 		battery,self_discharging_temp_block = <600>;
@@ -136,7 +136,7 @@
 			/* Charger */
 			battery,charger_name = "sm5705-charger";
 			battery,chgen_gpio = <&msm_gpio 132 0x00>;
-			battery,chg_float_voltage = <4390>;
+			battery,chg_float_voltage = <4350>;
 
 			battery,chg_polarity_en = <0>;
 			battery,chg_gpio_status = <0>;
@@ -154,8 +154,8 @@
 			battery,siop_call_cv_current = <500>;
 			battery,siop_call_cc_current = <500>;
 
-			battery,input_current_limit = <1800 500 500 1800 500 900 1000 500 500 1000 820 1700 1700 500 1300 300 700 1300 1500 300 80 900 1500 1000 1000 1650 1650 1650 1400 900 820 820 900 1000 1000>;
-			battery,fast_charging_current = <2100 0 500 2100 500 1200 1000 500 0 1200 1000 2100 2100 0 1300 300 700 1300 1500 300 80 1200 1500 1000 1000 3150 1000 3000 1400 1200 1000 1000 1200 0 1000>;
+			battery,input_current_limit = <1800 500 500 1800 500 900 1000 500 500 1000 820 1700 1700 500 1300 300 700 1300 1500 300 80 900 1500 1000 1000 1650 1650 1650 1400 900 820 820 900 1000 1800>;
+			battery,fast_charging_current = <2100 0 500 2100 500 1200 1000 500 0 1200 1000 2100 2100 0 1300 300 700 1300 1500 300 80 1200 1500 1000 1000 3150 1000 3000 1400 1200 1000 1000 1200 0 2100>;
 			battery,full_check_current_1st = <350 0 350 350 350 350 350 350 0 350 350 350 350 0 350 350 350 350 350 350 350 350 0 350 350 350 350 350 350 350 350 350 350 0 350>;
 			battery,full_check_current_2nd = <125 0 125 125 125 125 125 125 0 125 125 125 125 0 125 125 125 125 125 125 125 125 0 125 125 125 125 125 125 125 125 125 125 0 125>;
 		};
@@ -171,7 +171,7 @@
 		mux_sel,mux_sel_1_high = <0>; /* SEC_MUX_SEL_EAR_ADC */
 
 		mux_sel,mux_sel_2_en;
-		mux_sel,mux_sel_2 = <&msm_gpio 88 0x0>;
+		mux_sel,mux_sel_2 = <&msm_gpio 66 0x0>;
 		mux_sel,mux_sel_2_type = <24>; /* CHG_THM_MUX_SEL | AP_THM_MUX_SEL */
 		mux_sel,mux_sel_2_mpp = <4>; /* SEC_MPP4_MUX_SEL */
 		mux_sel,mux_sel_2_low = <4>; /* SEC_MUX_SEL_AP_THM */
@@ -180,9 +180,9 @@
 
 	battery_params {
 		battery,id = <0>; /* -1 means auto, detected by F/G */
-		battery0,battery_type = <4400>; /* 4200 4350 4400 */
-		battery0,battery_table0 = <0x1400 0x1B33 0x1CB0 0x1D75 0x1D8C 0x1DFC 0x1E77 0x1EED 0x1F5D 0x1FBE 0x2004 0x2061 0x20B3 0x222F 0x22B6 0x2400>;
-		battery0,battery_table1 = <0x0000 0x0033 0x00CC 0x0200 0x0433 0x0833 0x1033 0x1533 0x1733 0x1A33 0x1C33 0x1D33 0x1F33 0x2633 0x2833 0x2852>;
+		battery0,battery_type = <4350>; /* 4200 4350 4400 */
+		battery0,battery_table0 = <0x1400 0x1B33 0x1CF2 0x1D78 0x1D8B 0x1DE9 0x1E23 0x1E75 0x1EC8 0x1F03 0x1F80 0x2003 0x205D 0x20B3 0x224E 0x2400>;
+		battery0,battery_table1 = <0x0000 0x004D 0x0166 0x026B 0x0462 0x0769 0x0A65 0x0F63 0x1365 0x1566 0x1767 0x1B69 0x1C64 0x1E65 0x25CE 0x25D8>;
 		battery0,rce_value = <0x04E1 0x03E6 0x01D7>;
 		battery0,rs_value = <0x0051 0x147 0x47a 0x3800 0x00a4>; /*rs p_mix_factor n_mix_factor max min*/
 		battery0,misc = <0x0060>;
@@ -191,8 +191,8 @@
 		battery0,dtcd_value = <0x1>;
 		battery0,volt_cal = <0x8000>;
 		battery0,curr_offset = <1 0x0000>; /*en_auto offset*/
-		battery0,p_curr_cal = <0x0090>;
-		battery0,n_curr_cal = <0x0090>;
+		battery0,p_curr_cal = <0x006F>;
+		battery0,n_curr_cal = <0x0089>;
 		battery0,mix_value = <0x0503 0x0004>; /*mix_rate init_blank*/
 		battery0,temp_std = <25>;
 		battery0,temp_cal = <1 6 1 11 (-1) 1 6 1 9 1>; /* en_h, p_de, p_fa, n_de, n_fa, en_l, p_de, p_fa, n_de, n_fa, */

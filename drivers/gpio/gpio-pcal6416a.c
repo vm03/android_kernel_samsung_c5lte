@@ -213,6 +213,7 @@ static void pcal6416a_gpio_free(struct gpio_chip *gc, unsigned off)
 	/* to do*/
 }
 
+#if !defined(CONFIG_ARM64) 
 int expander_gpio_config(unsigned config, unsigned disable)
 {
 	int ret;
@@ -315,6 +316,7 @@ int expander_gpio_config(unsigned config, unsigned disable)
 	return 0;
 }
 EXPORT_SYMBOL(expander_gpio_config);
+#endif
 
 static int pcal6416a_gpio_setup(struct pcal6416a_chip *dev)
 {

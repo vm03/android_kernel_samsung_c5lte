@@ -40,6 +40,10 @@ static int mdss_panel_on_pre(struct mdss_dsi_ctrl_pdata *ctrl)
 		return false;
 	}
 
+#if defined(CONFIG_SEC_INCELL)
+//	if (incell_data.tsp_enable)
+//		incell_data.tsp_enable(NULL);
+#endif
 	pr_info("%s %d\n", __func__, ctrl->ndx);
 
 	mdss_panel_attach_set(ctrl, true);
@@ -83,6 +87,10 @@ static int mdss_panel_off_post(struct mdss_dsi_ctrl_pdata *ctrl)
 		return false;
 	}
 
+#if defined(CONFIG_SEC_INCELL)
+//	if (incell_data.tsp_disable)
+//		incell_data.tsp_disable(NULL);
+#endif
 	pr_info("%s %d\n", __func__, ctrl->ndx);
 
 	return true;
@@ -97,7 +105,6 @@ static void backlight_tft_late_on(struct mdss_dsi_ctrl_pdata *ctrl)
 		return;
 	}
 
-	isl98611_backlight_pwm_power(ctrl, true);
 }
 
 static int mdss_panel_revision(struct mdss_dsi_ctrl_pdata *ctrl)
@@ -173,7 +180,7 @@ static void mdss_panel_init(struct samsung_display_driver_data *vdd)
 	vdd->panel_func.samsung_brightness_gamma = NULL;
 
 	/* BLIC need to be controlled before panel reset*/
-	vdd->panel_func.samsung_panel_reset_control = isl98611_backlight_power;
+	vdd->panel_func.samsung_panel_reset_control = isl98611_backlight_control;
 
 	vdd->brightness[0].brightness_packet_tx_cmds_dsi.link_state = DSI_HS_MODE;
 	vdd->mdss_panel_tft_outdoormode_update=mdss_panel_tft_outdoormode_update;

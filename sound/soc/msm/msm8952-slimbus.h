@@ -23,7 +23,6 @@ struct ext_intf_cfg {
 	atomic_t quat_mi2s_clk_ref;
 	atomic_t quin_mi2s_clk_ref;
 	atomic_t auxpcm_mi2s_clk_ref;
-	atomic_t sec_auxpcm_mi2s_clk_ref;
 };
 
 int msm_slim_0_rx_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
@@ -67,10 +66,7 @@ int msm_auxpcm_be_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					struct snd_pcm_hw_params *params);
 int msm_prim_auxpcm_startup(struct snd_pcm_substream *substream);
 void msm_prim_auxpcm_shutdown(struct snd_pcm_substream *substream);
-#if defined (CONFIG_SND_SOC_SECONDARY_AUXPCM)
-int msm_sec_auxpcm_startup(struct snd_pcm_substream *substream);
-void msm_sec_auxpcm_shutdown(struct snd_pcm_substream *substream);
-#endif
+
 struct snd_soc_card *populate_snd_card_dailinks(struct device *dev);
 int msm_slim_4_tx_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					    struct snd_pcm_hw_params *params);

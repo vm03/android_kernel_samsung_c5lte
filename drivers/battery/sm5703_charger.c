@@ -697,6 +697,7 @@ static void sm5703_configure_charger(struct sm5703_charger_data *charger)
 
 	switch (full_check_type) {
 		case SEC_BATTERY_FULLCHARGED_CHGPSY:
+		case SEC_BATTERY_FULLCHARGED_FG_CURRENT:
 #if defined(CONFIG_BATTERY_SWELLING)
 			psy_do_property("battery", get,
 					POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT, swelling_state);
@@ -845,6 +846,10 @@ static int sm5703_get_charging_health(struct sm5703_charger_data *charger)
 {
 	int vbus_status = sm5703_reg_read(charger->sm5703->i2c_client, SM5703_STATUS5);
 	int health = POWER_SUPPLY_HEALTH_GOOD;
+	int chg_status3;
+	int nCHG = 0;
+
+	chg_status3 = sm5703_reg_read(charger->sm5703->i2c_client, SM5703_STATUS3);
 
 	pr_info("%s : charger->is_charging = %d, charger->cable_type = %d, is_current_reduced = %d\n",
 		__func__, charger->is_charging, charger->cable_type, charger->is_current_reduced);
@@ -867,6 +872,20 @@ static int sm5703_get_charging_health(struct sm5703_charger_data *charger)
 		health = POWER_SUPPLY_HEALTH_UNDERVOLTAGE;
 	else
 		health = POWER_SUPPLY_HEALTH_UNKNOWN;
+
+	if (health == POWER_SUPPLY_HEALTH_GOOD) {
+		/* check if chgen */
+		nCHG = gpio_get_value(charger->pdata->chgen_gpio);
+
+		/* print the log at the abnormal case */
+		if ((charger->is_charging == 1) && (chg_status3 & SM5703_STATUS3_DONE) &&
+			(nCHG)) {
+			sm5703_test_read(charger->sm5703->i2c_client);
+			gpio_direction_output(charger->pdata->chgen_gpio,
+				!(charger->is_charging)); /* re-enable Charger */
+			pr_info("%s : FORCE RE-ENABLE Charger in Fake DONE state\n", __func__);
+		}
+	}
 
 	pr_info("%s : Health : %d\n", __func__, health);
 
@@ -999,6 +1018,13 @@ static int sec_chg_set_property(struct power_supply *psy,
 				sm5703_set_input_current_limit(charger, charger->current_max);
 			} else if (charger->cable_type == POWER_SUPPLY_TYPE_OTG) {
 				pr_info("%s: OTG mode\n", __func__);
+				//2017.01.06 : If Lanhub cable is changed to OTG cable, needed to disable charger operation.
+				pr_info("%s: previous_cable_type = %d, cable_type = %d\n", __func__,previous_cable_type, charger->cable_type);
+				if (previous_cable_type == POWER_SUPPLY_TYPE_LAN_HUB)
+				{				
+					pr_info("%s: LAN HUB condition is turned off by charger driver\n", __func__);
+					sm5703_enable_charger_switch(charger, 0);
+				}
 				sm5703_charger_otg_control(charger, true);
 				charger->full_charged = false;
 			} else {
@@ -1026,8 +1052,27 @@ static int sec_chg_set_property(struct power_supply *psy,
 						charger->is_mdock = true;
 					}
 				}
+				
+				//2017.01.06 : If OTG cable is changed to Lanhub cable, needed to disable OTG operation.				
+				pr_info("%s: previous_cable_type = %d\n", __func__,previous_cable_type);
+				if (previous_cable_type == POWER_SUPPLY_TYPE_OTG && charger->cable_type == POWER_SUPPLY_TYPE_LAN_HUB)
+				{
+					pr_info("%s:OTG condition is turned off by charger driver\n", __func__);				
+					sm5703_charger_otg_control(charger, false);
+				}
+
 				/* Enable charger */
 				sm5703_configure_charger(charger);
+			}
+
+			if (sec_bat_get_slate_mode() == ENABLE) {
+				sm5703_enable_charger_switch(charger, false);
+				sm5703_assign_bits(charger->sm5703->i2c_client,
+					SM5703_CNTL, SM5703_OPERATION_MODE_MASK,
+					SM5703_OPERATION_MODE_SUSPEND);
+				pr_info("%s: SM5703 OPERATION MODE SUSPEND\n",__func__);
+			} else {
+				sm5703_enable_charger_switch(charger, charger->is_charging);
 			}
 #if EN_TEST_READ
 			/* msleep(100); */
@@ -1052,7 +1097,7 @@ static int sec_chg_set_property(struct power_supply *psy,
 			charger->siop_level = val->intval;
 			pr_info("%s:SIOP level = %d, chg current = %d\n", __func__,
 					val->intval, charger->charging_current);
-			if(charger->is_charging) {
+			if (charger->is_charging) {
 				sm5703_configure_charger(charger);
 			}
 			break;
@@ -1060,6 +1105,15 @@ static int sec_chg_set_property(struct power_supply *psy,
 			/* set charging current */
 			if (charger->is_charging) {
 				sm5703_configure_charger(charger);
+			}
+			if (sec_bat_get_slate_mode() == ENABLE) {
+				sm5703_enable_charger_switch(charger, false);
+				sm5703_assign_bits(charger->sm5703->i2c_client,
+					SM5703_CNTL, SM5703_OPERATION_MODE_MASK,
+					SM5703_OPERATION_MODE_SUSPEND);
+				pr_info("%s: SM5703 OPERATION MODE SUSPEND\n",__func__);
+			} else {
+				sm5703_enable_charger_switch(charger, charger->is_charging);
 			}
 			break;
 		case POWER_SUPPLY_PROP_POWER_NOW:
@@ -1256,7 +1310,8 @@ static irqreturn_t sm5703_chg_done_irq_handler(int irq, void *data)
 	/* nCHG pin toggle */
 	gpio_direction_output(info->pdata->chgen_gpio, info->is_charging);
 	msleep(10);
-	gpio_direction_output(info->pdata->chgen_gpio, !(info->is_charging));
+	/* Removed so to be able to check top-off timer at the factory */
+	/* gpio_direction_output(info->pdata->chgen_gpio, !(info->is_charging)); */
 
 #if EN_TEST_READ
 	sm5703_test_read(iic);
@@ -1608,12 +1663,6 @@ static int sm5703_charger_parse_dt(struct device *dev,
 		return -ENODATA;
 	}
 
-	ret = of_property_read_u32(np, "battery,chg_vbuslimit", &pdata->chg_vbuslimit);
-	if (ret < 0) {
-		pr_info("%s : cannot get chg vbuslimit\n", __func__);
-		pdata->chg_vbuslimit = 0;
-	}
-
 	ret = of_property_read_u32(np, "battery,full_check_type",
 			&pdata->full_check_type);
 	pr_info("%s full_check_type: %d\n", __func__, pdata->full_check_type);
@@ -1630,6 +1679,12 @@ static int sm5703_charger_parse_dt(struct device *dev,
 	if (!np) {
 		pr_info("%s : np NULL\n", __func__);
 		return -ENODATA;
+	}
+
+	ret = of_property_read_u32(np, "battery,chg_vbuslimit", &pdata->chg_vbuslimit);
+	if (ret < 0) {
+		pr_info("%s : cannot get chg vbuslimit\n", __func__);
+		pdata->chg_vbuslimit = 0;
 	}
 
 	p = of_get_property(np, "battery,input_current_limit", &len);

@@ -129,6 +129,8 @@ int C_A_D = 1;
 struct pid *cad_pid;
 EXPORT_SYMBOL(cad_pid);
 
+int ignore_fs_panic = 0; // To prevent kernel panic by EIO during shutdown
+
 /*
  * If set, this is used for preparing the system to power off.
  */
@@ -383,6 +385,7 @@ void kernel_restart_prepare(char *cmd)
 	system_state = SYSTEM_RESTART;
 	freeze_processes();
 	usermodehelper_disable();
+	ignore_fs_panic = 1;
 	device_shutdown();
 }
 
@@ -472,6 +475,7 @@ static void kernel_shutdown_prepare(enum system_states state)
 	system_state = state;
 	freeze_processes();
 	usermodehelper_disable();
+	ignore_fs_panic = 1;
 	device_shutdown();
 }
 /**
@@ -606,9 +610,11 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 	mutex_unlock(&reboot_mutex);
 	return ret;
 }
+extern void do_emergency_remount(struct work_struct *work);
 
 static void deferred_cad(struct work_struct *dummy)
 {
+	do_emergency_remount(NULL);
 	kernel_restart(NULL);
 }
 

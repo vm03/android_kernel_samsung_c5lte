@@ -398,7 +398,7 @@ struct mmc_host {
 				 MMC_CAP2_HS400_1_2V)
 #define MMC_CAP2_NONHOTPLUG	(1 << 25)	/*Don't support hotplug*/
 #define MMC_CAP2_CMD_QUEUE	(1 << 26)	/* support eMMC command queue */
-#define MMC_CAP2_BROKEN_PWR_CYCLE (1 << 28)    /* Host Broken power cycle */
+#define MMC_CAP2_BROKEN_PWR_CYCLE (1 << 27)	/* Host Broken power cycle */
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 
 	int			clk_requests;	/* internal reference counter */
@@ -542,6 +542,7 @@ struct mmc_host {
 	 */
 	void *cmdq_private;
 	struct mmc_request	*err_mrq;
+	unsigned int		card_detect_cnt;
 	unsigned long		private[0] ____cacheline_aligned;
 };
 

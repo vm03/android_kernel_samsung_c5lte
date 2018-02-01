@@ -262,6 +262,11 @@ int mms_flash_fw(struct mms_ts_info *info, const u8 *fw_data,
 	//Read firmware file
 	fw_hdr = (struct mms_bin_hdr *)fw_data;
 	img = kzalloc(sizeof(*img) * fw_hdr->section_num, GFP_KERNEL);
+	if (!img) {
+		dev_err(&client->dev, "%s [ERROR] Failed to allocate memory\n", __func__);
+		nRet = -ENOMEM;
+		goto err_alloc_img;
+	}
 
 	//Check firmware file
 	if (memcmp(CHIP_FW_CODE, &fw_hdr->tag[4], 4)) {
@@ -364,8 +369,18 @@ int mms_flash_fw(struct mms_ts_info *info, const u8 *fw_data,
 
 	//Load firmware data
 	data = kzalloc(sizeof(u8) * fw_hdr->binary_length, GFP_KERNEL);
+	if (!data) {
+		dev_err(&client->dev, "%s [ERROR] Failed to allocate memory\n", __func__);
+		nRet = -ENOMEM;
+		goto err_alloc_data;
+	}
 	size = fw_hdr->binary_length;
 	cpydata = kzalloc(ISC_PAGE_SIZE, GFP_KERNEL);
+	if (!cpydata) {
+		dev_err(&client->dev, "%s [ERROR] Failed to allocate memory\n", __func__);
+		nRet = -ENOMEM;
+		goto err_alloc_cpydata;
+	}
 
 	//Check firmware size
 	if (size % ISC_PAGE_SIZE !=0) {
@@ -472,9 +487,11 @@ ERROR:
 
 DONE:
 	kfree(cpydata);
+err_alloc_cpydata:
 	kfree(data);
-
+err_alloc_data:
 EXIT:
 	kfree(img);
+err_alloc_img:
 	return nRet;
 }

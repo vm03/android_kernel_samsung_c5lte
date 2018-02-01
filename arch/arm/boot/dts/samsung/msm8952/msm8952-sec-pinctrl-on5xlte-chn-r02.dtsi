@@ -512,13 +512,11 @@
 		qcom,pin-func = <0>;
 		mdss_esd_active: active {
 			drive-strength = <2>;
-			bias-disable; /* No PULL */
-			//bias-pull-down; /* pull down */
+			bias-pull-down; /* pull down */
 		};
 		mdss_esd_suspend: suspend {
 			drive-strength = <2>;
-			bias-disable; /* No PULL */
-			//bias-pull-down; /* pull down */
+			bias-pull-down; /* pull down */
 		};
 	};
 

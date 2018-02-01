@@ -68,7 +68,7 @@ static int32_t msm_sensor_driver_cmd(struct msm_sensor_init_t *s_init,
 
 	/* Validate input parameters */
 	if (!s_init || !cfg) {
-		pr_err("failed: s_init %p cfg %p", s_init, cfg);
+		pr_err("failed: s_init %pK cfg %pK", s_init, cfg);
 		return -EINVAL;
 	}
 
@@ -109,10 +109,8 @@ static long msm_sensor_init_subdev_ioctl(struct v4l2_subdev *sd,
 	CDBG("Enter");
 
 	/* Validate input parameters */
-	if (!s_init) {
-		pr_err("failed: s_init %p", s_init);
+	if (!s_init) 
 		return -EINVAL;
-	}
 
 	switch (cmd) {
 	case VIDIOC_MSM_SENSOR_INIT_CFG:
@@ -551,18 +549,10 @@ static int __init msm_sensor_init_module(void)
 
 	/* Allocate memory for msm_sensor_init control structure */
 	s_init = kzalloc(sizeof(struct msm_sensor_init_t), GFP_KERNEL);
-	if (!s_init) {
-		pr_err("failed: no memory s_init %p", NULL);
+	if (!s_init) 
 		return -ENOMEM;
-	}
-	if (!s_init) {
-		class_destroy(camera_class);
-		pr_err("failed: no memory s_init %p", NULL);
-		return -ENOMEM;
-	}
 
-
-	CDBG("MSM_SENSOR_INIT_MODULE %p", NULL);
+	CDBG("MSM_SENSOR_INIT_MODULE %pK", NULL);
 
 	/* Initialize mutex */
 	mutex_init(&s_init->imutex);

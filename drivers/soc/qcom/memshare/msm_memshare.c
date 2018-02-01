@@ -195,6 +195,7 @@ static int modem_notifier_cb(struct notifier_block *this, unsigned long code,
 					void *_cmd)
 {
 	int i;
+
 	switch (code) {
 
 	case SUBSYS_BEFORE_SHUTDOWN:
@@ -211,6 +212,7 @@ static int modem_notifier_cb(struct notifier_block *this, unsigned long code,
 					memblock[i].free_memory,
 					memblock[i].client_id);
 			}
+
 		
 			if (memblock[i].free_memory == 0) {
 				if (memblock[i].peripheral ==

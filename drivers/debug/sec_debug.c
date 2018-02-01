@@ -421,6 +421,17 @@ static int force_error(const char *val, struct kernel_param *kp)
 	}else if (!strncmp(val, "secdogbite", 10)) {
 		simulate_secure_wdog_bite();
 #endif
+#ifdef CONFIG_USER_RESET_DEBUG_TEST
+	} else if (!strncmp(val, "TP", 2)) {
+		force_thermal_reset();
+	} else if (!strncmp(val, "KP", 2)) {
+		pr_emerg("Generating a data abort exception!\n");
+		*(unsigned int *)0x0 = 0x0;
+	} else if (!strncmp(val, "DP", 2)) {
+		force_watchdog_bark();
+	} else if (!strncmp(val, "WP", 2)) {
+		simulate_secure_wdog_bite();
+#endif
 	} else {
 		pr_emerg("No such error defined for now!\n");
 	}
@@ -723,19 +734,28 @@ void sec_peripheral_secure_check_fail(void)
 {
 	sec_debug_set_upload_magic(0x77665507);
 	sec_debug_set_qc_dload_magic(0);
-        printk("sec_periphe\n");
-        pr_emerg("(%s) rebooting...\n", __func__);
-        flush_cache_all();
+	pr_emerg("(%s) %s %s\n", __func__,  init_uts_ns.name.release,
+						init_uts_ns.name.version);
+	pr_emerg("(%s) rebooting...\n", __func__);
+	flush_cache_all();
 #ifndef CONFIG_ARM64
-        outer_flush_all();
+	outer_flush_all();
 #endif
-        do_msm_restart(0, "peripheral_hw_reset");
+	do_msm_restart(0, "peripheral_hw_reset");
 
-        while (1)
-                ;
+	while (1)
+		;
 }
 EXPORT_SYMBOL(sec_peripheral_secure_check_fail);
 #endif
+
+void sec_debug_set_thermal_upload(void)
+{
+	pr_emerg("(%s) set thermal upload cause\n", __func__);
+	sec_debug_set_upload_magic(0x776655ee);
+	sec_debug_set_upload_cause(UPLOAD_CAUSE_POWER_THERMAL_RESET);
+}
+EXPORT_SYMBOL(sec_debug_set_thermal_upload);
 
 #ifdef CONFIG_SEC_DEBUG_LOW_LOG
 unsigned sec_debug_get_reset_reason(void)
@@ -844,11 +864,8 @@ static int sec_debug_panic_handler(struct notifier_block *nb,
 
 void sec_debug_prepare_for_wdog_bark_reset(void)
 {
-    if(sec_debug_is_enabled())
-    {
-        sec_debug_set_upload_magic(SECDEBUG_MODE);
-        sec_debug_set_upload_cause(UPLOAD_CAUSE_NON_SECURE_WDOG_BARK);
-    }
+	sec_debug_set_upload_magic(SECDEBUG_MODE);
+	sec_debug_set_upload_cause(UPLOAD_CAUSE_NON_SECURE_WDOG_BARK);
 }
 
 /* Writing magic no for thermal reset detection */
@@ -1346,7 +1363,7 @@ int sec_debug_is_enabled_for_ssr(void)
 #endif
 
 #ifdef CONFIG_SEC_FILE_LEAK_DEBUG
-void sec_debug_print_file_list(void)
+int sec_debug_print_file_list(void)
 {
 	int i=0;
 	unsigned int nCnt=0;
@@ -1354,6 +1371,7 @@ void sec_debug_print_file_list(void)
 	struct files_struct *files = current->files;
 	const char *pRootName=NULL;
 	const char *pFileName=NULL;
+	int ret=0;
 
 	nCnt=files->fdt->max_fds;
 
@@ -1379,9 +1397,14 @@ void sec_debug_print_file_list(void)
 
 			printk(KERN_ERR "[%04d]%s%s\n",i,pRootName==NULL?"null":pRootName,
 							pFileName==NULL?"null":pFileName);
+			ret++;
 		}
 		rcu_read_unlock();
 	}
+	if(ret > nCnt - 50)
+		return 1;
+	else
+		return 0;
 }
 
 void sec_debug_EMFILE_error_proc(void)
@@ -1396,8 +1419,9 @@ void sec_debug_EMFILE_error_proc(void)
 	if (!strcmp(current->group_leader->comm, "system_server")
 		||!strcmp(current->group_leader->comm, "mediaserver")
 		||!strcmp(current->group_leader->comm, "surfaceflinger")){
-		sec_debug_print_file_list();
-		panic("Too many open files");
+		if (sec_debug_print_file_list() == 1) {
+			panic("Too many open files");
+		}
 	}
 }
 #endif

@@ -138,6 +138,7 @@ struct mdss_panel_cfg {
 #define MDP_INTF_DSI_CMD_FIFO_UNDERFLOW		0x0001
 #define MDP_INTF_DSI_VIDEO_FIFO_OVERFLOW	0x0002
 
+
 enum {
 	MDP_INTF_CALLBACK_DSI_WAIT,
 };
@@ -235,10 +236,12 @@ enum mdss_intf_events {
 	MDSS_EVENT_DSI_RECONFIG_CMD,
 	MDSS_EVENT_DSI_RESET_WRITE_PTR,
 #if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+	MDSS_SAMSUNG_EVENT_START,
 	MDSS_SAMSUNG_EVENT_FRAME_UPDATE,
 	MDSS_SAMSUNG_EVENT_FB_EVENT_CALLBACK,
-	MDSS_SAMSUNG_EVENT_ULP,
-	MDSS_SAMSUNG_EVENT_LP,
+	MDSS_SAMSUNG_EVENT_PANEL_ESD_RECOVERY,
+	MDSS_SAMSUNG_EVENT_MULTI_RESOLUTION,
+	MDSS_SAMSUNG_EVENT_MAX,
 #endif
 };
 
@@ -522,9 +525,7 @@ struct mdss_panel_info {
 	u32 partial_update_roi_merge;
 	struct ion_handle *splash_ihdl;
 	int panel_power_state;
-#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
 	int blank_state;
-#endif
 	int compression_mode;
 
 	uint32_t panel_dead;
@@ -587,6 +588,7 @@ struct mdss_panel_data {
 
 struct mdss_panel_debugfs_info {
 	struct dentry *root;
+	struct dentry *parent;
 	struct mdss_panel_info panel_info;
 	u32 override_flag;
 	struct mdss_panel_debugfs_info *next;

@@ -3075,6 +3075,7 @@ static int tc300k_probe(struct i2c_client *client,
 		dev_info(&client->dev, "%s: mode %d, sar %d\n",
 				__func__, ret, data->sar_enable);
 	}
+	device_init_wakeup(&client->dev, true);	
 #endif
 
 	dev_err(&client->dev, "[TK] %s done\n", __func__);

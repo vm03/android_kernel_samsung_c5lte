@@ -473,9 +473,14 @@ static long p61_dev_ioctl(struct file *filp, unsigned int cmd,
 		break;
 
 	case P61_SET_SPM_PWR:
-		pr_info(KERN_ALERT " P61_SET_SPM_PWR: enter");
+		pr_info(KERN_ALERT " P61_SET_SPM_PWR: enter, arg(%lu)", arg);
 		ret = pn547_dev_ioctl(filp, P61_SET_SPI_PWR, arg);
-		pwr_req_on = arg;
+		if (arg != 5) {
+			/* ignore 5, which just releases ESE lock on pn547.c
+			   it's not related to power action itself, hence ignore it
+			   to avoid power off function calls at p61_dev_release() */
+			pwr_req_on = arg;
+		}
 		pr_info(KERN_ALERT " P61_SET_SPM_PWR: exit");
 		break;
 
@@ -518,7 +523,7 @@ static int p61_dev_release(struct inode *inode, struct file *file)
 	}
 
 	if (pwr_req_on != 0) {
-		pr_info("%s: [NFC-ESE] release spi session.\n", __func__);
+		pr_info("%s: [NFC-ESE] release spi session(%d)\n", __func__, pwr_req_on);
 		pn547_dev_ioctl(file, P61_SET_SPI_PWR, 0);
 	}
 	p61_dev->device_opened = false;

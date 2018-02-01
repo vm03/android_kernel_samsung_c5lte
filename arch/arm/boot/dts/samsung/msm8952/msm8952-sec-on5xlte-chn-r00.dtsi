@@ -25,6 +25,7 @@
 /{
 	aliases {
 		spi8 = &spi_8;
+		i2c2 = &i2c_2;
 		i2c6  = &i2c_6;
 		/delete-property/ i2c7;
 	};
@@ -562,6 +563,14 @@
 		<0x73 0x80 0x58 0x81 0x24 0x82 0xffffffff>;
 };
 
+&spmi_bus {
+	/* remove all unnecessary redundant PMI operation by QC guide, 
+	(qcom,pmi8950@2, qcom,pmi8950@3) 
+	case 02645142 case 02917190 */
+	/delete-node/ qcom,pmi8950@2;
+	/delete-node/ qcom,pmi8950@3;
+};
+
 &blsp1_uart2 {
 	status = "ok";
 	pinctrl-names = "default";
@@ -669,11 +678,6 @@
 	qcom,pins = <&gp 60>;
 };
 
-&pmx_mdss_blic {
-	qcom,num-grp-pins = <2>;
-	qcom,pins = <&gp 7>, <&gp 6>; /*SCL, SDA */
-};
-
 &mdss_dsi0 {
 	qcom,dsi-pref-prim-pan = <&ss_dsi_panel_TD4100_C5001H3F_HD>;
 
@@ -686,15 +690,30 @@
 };
 
 &soc {
-	i2c_24: i2c@24 {
+	/delete-node/i2c@78b6000;
+	i2c_2: i2c@78b6000 { /* BLSP1 QUP2 */
+		compatible = "qcom,i2c-msm-v2";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg-names = "qup_phys_addr";
+		reg = <0x78b6000 0x1000>;
+		interrupt-names = "qup_irq";
+		interrupts = <0 96 0>;
+		qcom,clk-freq-out = <400000>;
+		qcom,clk-freq-in  = <19200000>;
+		clock-names = "iface_clk", "core_clk";
+		clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
+			 <&clock_gcc clk_gcc_blsp1_qup2_i2c_apps_clk>;
 
-		cell-index = <24>;
-		compatible = "i2c-gpio";
-
-		gpios = <&msm_gpio 6 0 /* sda */
-			&msm_gpio 7 0 /* scl */
-		>;
-		i2c-gpio,delay-us = <2>;
+		pinctrl-names = "i2c_active", "i2c_sleep";
+		pinctrl-0 = <&i2c_2_active>;
+		pinctrl-1 = <&i2c_2_sleep>;
+		qcom,noise-rjct-scl = <0>;
+		qcom,noise-rjct-sda = <0>;
+		qcom,master-id = <86>;
+		dmas = <&dma_blsp1 6 64 0x20000020 0x20>,
+			<&dma_blsp1 7 32 0x20000020 0x20>;
+		dma-names = "tx", "rx";
 
 		isl98611_backlight@29 {
 			compatible = "isl98611,backlight-control";

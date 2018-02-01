@@ -2052,7 +2052,7 @@ static void mtp_sorting(struct SMART_DIM *psmart)
 
 }
 
-int hbm_interpolation_table[HBM_INTERPOLATION_STEP] = {465, 488, 510, 533, 555, 578, 600};
+int hbm_interpolation_table[HBM_INTERPOLATION_STEP] = {465, 488, 510, 533, 555, 578, 600, 443};
 
 static void hbm_interpolation_init(struct SMART_DIM *pSmart)
 {

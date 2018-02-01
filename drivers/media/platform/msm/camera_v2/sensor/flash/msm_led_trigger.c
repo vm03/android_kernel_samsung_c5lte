@@ -41,6 +41,8 @@ extern void ss_rear_flash_led_flash_on(void);
 extern void ss_rear_flash_led_torch_on(void);
 extern void ss_rear_flash_led_turn_off(void);
 extern void ss_rear_torch_set_flashlight(bool isFlashlight);
+extern void ss_front_flash_led_turn_on(void);
+extern void ss_front_flash_led_turn_off(void);
 #endif
 
 static int32_t msm_led_trigger_get_subdev_id(struct msm_led_flash_ctrl_t *fctrl,
@@ -67,33 +69,66 @@ static int32_t msm_led_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
 	void *data)
 {
 	int rc = 0;
+	int flash_id = 0;
 	struct msm_camera_led_cfg_t *cfg = (struct msm_camera_led_cfg_t *)data;
 
 	if (!fctrl) {
 		pr_err("[%s:%d]failed\n", __func__, __LINE__);
 		return -EINVAL;
 	}
+	pr_err("%s [CAM_LED]FLASH ID:%d\n", __func__, cfg->flash_front);
+	switch (cfg->flash_front) {
+		case 0:
+			flash_id = BACK_CAMERA_B;
+			break;
+
+		case 1:
+			flash_id = FRONT_CAMERA_B;
+			break;
+
+		case 3:
+			flash_id = 4;	//INIT&RELEASE
+			break;
+
+		default:
+			flash_id = 0;
+			pr_err("%s [CAM_LED]default is back\n", __func__);
+			break;
+	}
 	
 	CDBG("cfg->cfgtype = %d\n", cfg->cfgtype);
 	switch (cfg->cfgtype) {
 		case MSM_CAMERA_LED_OFF:
-			CDBG("MSM_CAMERA_LED_OFF");
-			ss_rear_flash_led_turn_off();
+			pr_err("MSM_CAMERA_LED_OFF");
+			if (BACK_CAMERA_B == flash_id)
+				ss_rear_flash_led_turn_off();
+			else if (FRONT_CAMERA_B == flash_id)
+				ss_front_flash_led_turn_off();
 		break;
 		case MSM_CAMERA_LED_LOW:
-			ss_rear_torch_set_flashlight(false);
-			ss_rear_flash_led_torch_on();
+			if (BACK_CAMERA_B == flash_id)	{
+				ss_rear_torch_set_flashlight(false);
+				ss_rear_flash_led_torch_on();
+			}
+			else if (FRONT_CAMERA_B == flash_id)
+				ss_front_flash_led_turn_on();
+
 		break;
 		case MSM_CAMERA_LED_TORCH:
 			ss_rear_torch_set_flashlight(true);
 			ss_rear_flash_led_torch_on();
 		break;
 		case MSM_CAMERA_LED_HIGH:
-			ss_rear_flash_led_flash_on();
+			CDBG("MSM_CAMERA_LED_HIGH");
+			if (BACK_CAMERA_B == flash_id)
+				ss_rear_flash_led_flash_on();
 		break;
 		case MSM_CAMERA_LED_INIT:
 		case MSM_CAMERA_LED_RELEASE:
-			ss_rear_flash_led_turn_off();
+		/*	if (BACK_CAMERA_B == flash_id) */
+				ss_rear_flash_led_turn_off();
+		/*	else if (FRONT_CAMERA_B == flash_id) */
+				ss_front_flash_led_turn_off();
 		break;
 		default:
 		break;

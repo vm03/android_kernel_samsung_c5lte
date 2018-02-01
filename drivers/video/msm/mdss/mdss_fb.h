@@ -294,7 +294,7 @@ struct msm_fb_data_type {
 #if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
 	u32 need_to_update_unset_bl_level;
 #endif
-	u32 bl_updated;
+	bool allow_bl_update;
 	u32 bl_level_scaled;
 	struct mutex bl_lock;
 

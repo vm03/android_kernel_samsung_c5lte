@@ -37,7 +37,6 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 
-
 static DECLARE_BITMAP(minors, N_SPI_MINORS);
 
 static LIST_HEAD(device_list);

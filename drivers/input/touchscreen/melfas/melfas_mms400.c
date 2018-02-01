@@ -286,6 +286,14 @@ int mms_i2c_read(struct mms_ts_info *info, char *write_buf, unsigned int write_l
 		},
 	};
 
+#ifdef CONFIG_SECURE_TOUCH                                                                                                                                                           
+    if (atomic_read(&info->secure_enabled) == SECURE_TOUCH_ENABLED) {
+        dev_err(&info->client->dev,
+            "%s: TSP no accessible from Linux, TUI is enabled!\n", __func__);
+        return -EBUSY;
+    }
+#endif
+
 	while (retry--) {
 		res = i2c_transfer(info->client->adapter, msg, ARRAY_SIZE(msg));
 
@@ -325,6 +333,14 @@ int mms_i2c_read_next(struct mms_ts_info *info, char *read_buf, int start_idx,
 	int res;
 	u8 rbuf[read_len];
 
+#ifdef CONFIG_SECURE_TOUCH                                                                                                                                                           
+    if (atomic_read(&info->secure_enabled) == SECURE_TOUCH_ENABLED) {
+        dev_err(&info->client->dev,
+            "%s: TSP no accessible from Linux, TUI is enabled!\n", __func__);
+        return -EBUSY;
+    }
+#endif
+
 	while (retry--) {
 		res = i2c_master_recv(info->client, rbuf, read_len);
 
@@ -362,6 +378,14 @@ int mms_i2c_write(struct mms_ts_info *info, char *write_buf, unsigned int write_
 {
 	int retry = I2C_RETRY_COUNT;
 	int res;
+
+#ifdef CONFIG_SECURE_TOUCH                                                                                                                                                           
+    if (atomic_read(&info->secure_enabled) == SECURE_TOUCH_ENABLED) {
+        dev_err(&info->client->dev,
+            "%s: TSP no accessible from Linux, TUI is enabled!\n", __func__);
+        return -EBUSY;
+    }
+#endif
 
 	while (retry--) {
 		res = i2c_master_send(info->client, write_buf, write_len);
@@ -757,6 +781,7 @@ static irqreturn_t mms_interrupt(int irq, void *dev_id)
 	int event_size = info->event_size;
 	u8 category = 0;
 	u8 alert_type = 0;
+	int ret = 0;
 
 	dev_dbg(&client->dev, "%s [START]\n", __func__);
 
@@ -776,7 +801,13 @@ static irqreturn_t mms_interrupt(int irq, void *dev_id)
 		wake_lock_timeout(&info->wakelock,
 				msecs_to_jiffies(3 * MSEC_PER_SEC));
 		/* waiting for blsp block resuming, if not occurs i2c error */
-		wait_for_completion_interruptible(&info->resume_done);
+		ret = wait_for_completion_interruptible_timeout(&info->resume_done,
+				msecs_to_jiffies(5 * MSEC_PER_SEC));
+		if (ret == 0) {
+			dev_err(&info->client->dev,
+					"%s: LPM: pm resume is not handled [timeout]\n", __func__);
+			return IRQ_HANDLED;
+		}
 	}
 
 	//Read first packet

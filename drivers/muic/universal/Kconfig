@@ -61,11 +61,13 @@ config SM5705_SUPPORT_LANHUB
 	default n
 	help
 	 This option will provide USB LANHUB support to SM5705 MUIC based
-	 devices. 
-config SM5705_SUPPORT_GAMEPAD
-	bool "GAMEPAD Support for SM5705 MUIC"
-	depends on MUIC_UNIVERSAL_SM5705
+	 devices.
+
+config MUIC_SUPPORT_GAMEPAD
+	bool "GAMEPAD Support for MUIC"
+	depends on MUIC_UNIVERSAL
 	default n
 	help
-	 This option will provide GAMEPAD support to SM5705 MUIC based
-	 devices. 
+	 This option will provide GAMEPAD support to MUIC based
+	 devices.
+

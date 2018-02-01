@@ -695,6 +695,12 @@
 		<0x73 0x80 0x58 0x81 0x24 0x82 0xffffffff>;
 };
 
+&spmi_bus {
+	//remove all unnecessary redundant PMI operation(qcom,pmi8950@2, qcom,pmi8950@3) by QC guide, case 02645142 case 02917190
+	/delete-node/ qcom,pmi8950@2;
+	/delete-node/ qcom,pmi8950@3;
+};
+
 &blsp1_uart2 {
 	status = "ok";
 	pinctrl-names = "default";

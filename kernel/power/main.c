@@ -527,36 +527,10 @@ DEFINE_MUTEX(cpufreq_limit_mutex);
 static ssize_t cpufreq_table_show(struct kobject *kobj,
 			struct kobj_attribute *attr, char *buf)
 {
-#ifndef CONFIG_SCHED_HMP
 	ssize_t len = 0;
-	int i, count = 0;
-
-	struct cpufreq_frequency_table *table;
-
-	table = cpufreq_frequency_get_table(0);
-	if (table == NULL)
-		return 0;
-
-	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++)
-		count = i;
-
-	for (i = count; i >= 0; i--) {
-		unsigned int freq;
-		freq = table[i].frequency;
-
-		if (freq < MIN_FREQ_LIMIT || freq > MAX_FREQ_LIMIT)
-			continue;
-
-		len += sprintf(buf + len, "%u ", freq);
-	}
-
-	len--;
-	len += sprintf(buf + len, "\n");
+	len = cpufreq_limit_get_table(buf);
 
 	return len;
-#else
-	return cpufreq_limit_get_table(buf);
-#endif
 }
 
 static ssize_t cpufreq_table_store(struct kobject *kobj,
@@ -628,10 +602,9 @@ static ssize_t cpufreq_min_limit_store(struct kobject *kobj,
 		pr_err("%s: Invalid cpufreq format\n", __func__);
 		goto out;
 	}
+	release = (val == -1 || val == 0) ? 1 : 0;
 
 	mutex_lock(&cpufreq_limit_mutex);
-	if (val == 0xFFFFFFFF || val == 0) // release case
-		release = 1;
 
 	if (cpufreq_min_hd) {
 		cpufreq_limit_put(cpufreq_min_hd, release);
@@ -665,48 +638,46 @@ struct cpufreq_limit_handle *cpufreq_min_finger;
 
 int set_freq_limit(unsigned long id, unsigned int freq)
 {
-	ssize_t ret = -EINVAL;
-	int release = 0;
+	ssize_t ret = 0;
+	int release = (freq == -1 || freq == 0) ? 1 : 0;
 
 	mutex_lock(&cpufreq_limit_mutex);
-	if (freq == 0xFFFFFFFF || freq == 0) // release case
-		release = 1;
-
-	if (cpufreq_min_touch) {
-		cpufreq_limit_put(cpufreq_min_touch, release);
-		cpufreq_min_touch = NULL;
-	}
-
-	if (cpufreq_min_finger) {
-		cpufreq_limit_put(cpufreq_min_finger, release);
-		cpufreq_min_finger = NULL;
-	}
 
 	pr_debug("%s: id=%d freq=%d\n", __func__, (int)id, freq);
-	if ( !release ) {
-		/* min lock */
-		if (id & DVFS_TOUCH_ID) {
+
+	/* min lock */
+	if (id & DVFS_TOUCH_ID) {
+		if (cpufreq_min_touch) {
+			cpufreq_limit_put(cpufreq_min_touch, release);
+			cpufreq_min_touch = NULL;
+		}
+		if ( !release ) {
 			cpufreq_min_touch = cpufreq_limit_min_freq(freq, "touch min");
 			if (IS_ERR(cpufreq_min_touch)) {
 				pr_err("%s: fail to get the handle\n", __func__);
-				goto out;
+				cpufreq_min_touch = NULL;
+				ret = -EINVAL;
 			}
 		}
+	}
 
-		if (id & DVFS_FINGER_ID) {
+	if (id & DVFS_FINGER_ID) {
+		if (cpufreq_min_finger) {
+			cpufreq_limit_put(cpufreq_min_finger, release);
+			cpufreq_min_finger = NULL;
+		}
+		if ( !release ) {
 			cpufreq_min_finger = cpufreq_limit_min_freq(freq, "finger min");
 			if (IS_ERR(cpufreq_min_finger)) {
 				pr_err("%s: fail to get the handle\n", __func__);
-				goto out;
+				cpufreq_min_finger = NULL;
+				ret = -EINVAL;
 			}
-	 	}
+		}
 	}
-	ret = 0;
-out:
 	mutex_unlock(&cpufreq_limit_mutex);
 	return ret;
 }
-
 #endif
 
 #ifdef CONFIG_PM_TRACE
@@ -804,15 +775,23 @@ static char selfdischg_usage_str[] =
 	"/sys/module/lpm_levels/system/pwr/cpu4/wfi/idle_enabled N\n"
 	"/sys/module/lpm_levels/system/pwr/cpu5/standalone_pc/idle_enabled N\n"
 	"/sys/module/lpm_levels/system/pwr/cpu5/wfi/idle_enabled N\n"
+	"/sys/module/lpm_levels/system/pwr/cpu6/standalone_pc/idle_enabled N\n"
+	"/sys/module/lpm_levels/system/pwr/cpu6/wfi/idle_enabled N\n"
+	"/sys/module/lpm_levels/system/pwr/cpu7/standalone_pc/idle_enabled N\n"
+	"/sys/module/lpm_levels/system/pwr/cpu7/wfi/idle_enabled N\n"
 	"[STOP]\n"
 	"/sys/power/selfdischg_usage 0\n"
 	"/sys/module/lpm_levels/system/pwr/cpu4/standalone_pc/idle_enabled Y\n"
 	"/sys/module/lpm_levels/system/pwr/cpu4/wfi/idle_enabled Y\n"
 	"/sys/module/lpm_levels/system/pwr/cpu5/standalone_pc/idle_enabled Y\n"
 	"/sys/module/lpm_levels/system/pwr/cpu5/wfi/idle_enabled Y\n"
+	"/sys/module/lpm_levels/system/pwr/cpu6/standalone_pc/idle_enabled Y\n"
+	"/sys/module/lpm_levels/system/pwr/cpu6/wfi/idle_enabled Y\n"
+	"/sys/module/lpm_levels/system/pwr/cpu7/standalone_pc/idle_enabled Y\n"
+	"/sys/module/lpm_levels/system/pwr/cpu7/wfi/idle_enabled Y\n"
 	"[END]\n";
 
-	#define DISABLE_CPU_MASK	0x30 // CPU 4,5
+	#define DISABLE_CPU_MASK	0xF0 // CPU 4,5,6,7
 
 #elif defined(CONFIG_ARCH_MSM8976)
 	"[START]\n"

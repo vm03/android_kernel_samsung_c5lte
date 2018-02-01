@@ -234,16 +234,24 @@ static int s2mu005_rgb_ramp(struct led_classdev *led_cdev,
 
 	if (ramp_up <= 800) {
 		ramp_up /= 100;
-	} else {
+	}
+	else if(ramp_up < 2400) {
 		ramp_up = (ramp_up - 800) / 2 + 800;
 		ramp_up /= 100;
+	}
+	else {
+		ramp_up = 15;	
 	}
 
 	if (ramp_down <= 800) {
 		ramp_down /= 100;
-	} else {
+	}
+	else if(ramp_down < 2400) {
 		ramp_down = (ramp_down - 800) / 2 + 800;
 		ramp_down /= 100;
+	}
+	else {
+		ramp_down = 15;	
 	}
 
 	value = (ramp_down) | (ramp_up << 4);
@@ -552,6 +560,10 @@ static ssize_t store_s2mu005_rgb_blink(struct device *dev,
 	unsigned int led_total_br = 0;
 	unsigned int led_max_br = 0;
 	int ret;
+	int stable_on_time = 0;
+	int ramp_up_time = 0;
+	int ramp_down_time = 0;
+	int temp;
 
 	ret = sscanf(buf, "0x%8x %5d %5d", &led_brightness,
 					&delay_on_time, &delay_off_time);
@@ -640,10 +652,27 @@ static ssize_t store_s2mu005_rgb_blink(struct device *dev,
 		if (led_b_brightness) {
 			s2mu005_rgb_set_state(&s2mu005_rgb->led[BLUE], led_b_brightness, RGBLED_BLINK);
 		}
+
+		//set 2/5 of delay_on_time for ramp up/down time each and 1/5 for stable_on_time
+		if(delay_on_time < 300){
+			ramp_up_time = ramp_down_time=0;
+			stable_on_time = delay_on_time;
+		}
+		else{
+			temp = delay_on_time/5;
+			ramp_down_time = ramp_up_time = temp*2;
+			stable_on_time = delay_on_time - (temp << 2);
+		}
+
+		/*Set LED ramp mode*/
+		s2mu005_rgb_ramp(&s2mu005_rgb->led[RED],ramp_up_time,ramp_down_time);
+		s2mu005_rgb_ramp(&s2mu005_rgb->led[GREEN],ramp_up_time,ramp_down_time);
+		s2mu005_rgb_ramp(&s2mu005_rgb->led[BLUE],ramp_up_time,ramp_down_time);
+
 		/*Set LED blink mode*/
-		s2mu005_rgb_blink(&s2mu005_rgb->led[RED], delay_on_time, delay_off_time);
-		s2mu005_rgb_blink(&s2mu005_rgb->led[GREEN], delay_on_time, delay_off_time);
-		s2mu005_rgb_blink(&s2mu005_rgb->led[BLUE], delay_on_time, delay_off_time);
+		s2mu005_rgb_blink(&s2mu005_rgb->led[RED], stable_on_time, delay_off_time);
+		s2mu005_rgb_blink(&s2mu005_rgb->led[GREEN], stable_on_time, delay_off_time);
+		s2mu005_rgb_blink(&s2mu005_rgb->led[BLUE], stable_on_time, delay_off_time);
 	}
 
 	pr_info("leds-s2mu005-rgb: %s, delay_on_time= %x, delay_off_time= %x\n",

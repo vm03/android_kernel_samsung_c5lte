@@ -134,7 +134,7 @@ static bool get_dload_mode(void)
 	return dload_mode_enabled;
 }
 #endif
-
+#if 0
 static void enable_emergency_dload_mode(void)
 {
 	int ret;
@@ -159,7 +159,7 @@ static void enable_emergency_dload_mode(void)
 	if (ret)
 		pr_err("Failed to set secure EDLOAD mode: %d\n", ret);
 }
-
+#endif
 static int dload_set(const char *val, struct kernel_param *kp)
 {
 	int ret;
@@ -273,7 +273,10 @@ static void msm_restart_prepare(const char *cmd)
 			((cmd != NULL && cmd[0] != '\0') &&
 			strcmp(cmd, "recovery") &&
 			strcmp(cmd, "bootloader") &&
-			strcmp(cmd, "rtc")))
+			strcmp(cmd, "rtc") &&
+			strcmp(cmd, "dm-verity device corrupted") &&
+			strcmp(cmd, "dm-verity enforcing") &&
+			strcmp(cmd, "keys clear")))
 			need_warm_reset = true;
 	} else {
 		need_warm_reset = (get_dload_mode() ||
@@ -301,6 +304,12 @@ static void msm_restart_prepare(const char *cmd)
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_RTC);
 			__raw_writel(0x77665503, restart_reason);
+		} else if (!strcmp(cmd, "dm-verity device corrupted")) {
+			__raw_writel(0x77665508, restart_reason);
+		} else if (!strcmp(cmd, "dm-verity enforcing")) {
+			__raw_writel(0x77665509, restart_reason);
+		} else if (!strcmp(cmd, "keys clear")) {
+			__raw_writel(0x7766550a, restart_reason);
 		} else if (!strncmp(cmd, "oem-", 4)) {
 			unsigned long code;
 			int ret;
@@ -318,6 +327,12 @@ static void msm_restart_prepare(const char *cmd)
 			__raw_writel(0x77665502, restart_reason);
 		} else if (!strcmp(cmd, "rtc")) {
 			__raw_writel(0x77665503, restart_reason);
+#ifdef CONFIG_SEC_PERIPHERAL_SECURE_CHK
+		} else if (!strncmp(cmd, "peripheral_hw_reset", 19)) {
+		qpnp_pon_set_restart_reason(PON_RESTART_REASON_SECURE_CHECK_FAIL);
+			__raw_writel(0x77665507, restart_reason);
+			warm_reboot_set = 1;
+#endif
 		} else if (!strncmp(cmd, "oem-", 4)) {
 			unsigned long code;
 			int ret;
@@ -363,9 +378,11 @@ static void msm_restart_prepare(const char *cmd)
 					&& !kstrtoul(cmd + 5, 0, &value)) {
 			__raw_writel(0xabce0000 | value, restart_reason);
 #endif
+#if 0
 		} else if (!strncmp(cmd, "edl", 3)) {
 			enable_emergency_dload_mode();
 			warm_reboot_set = 1;
+#endif
 		} else if (!strncmp(cmd, "lpm", 3)) {
 			__raw_writel(0x12345678, restart_reason);/* Do normal reboot from lpm*/
 		} else if (strlen(cmd) == 0) {

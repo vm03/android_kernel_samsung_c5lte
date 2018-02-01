@@ -590,7 +590,6 @@ static void otg_notify_state(unsigned long event, int enable)
 	struct otg_notify *notify = NULL;
 	int type = 0;
 	int virtual = 0;
-	unsigned long prev_c_type = 0;
 
 	if (!u_notify) {
 		pr_err("u_notify is NULL\n");
@@ -605,7 +604,6 @@ static void otg_notify_state(unsigned long event, int enable)
 		pr_err("notify is NULL\n");
 		goto no_save_event;
 	}
-	prev_c_type = u_notify->c_type;
 
 	virtual = IS_VIRTUAL(event);
 	event = PHY_EVENT(event);
@@ -694,12 +692,6 @@ static void otg_notify_state(unsigned long event, int enable)
 		}
 		u_notify->diable_v_drive = 0;
 		if (enable) {
-			if (prev_c_type == NOTIFY_EVENT_HMT ||
-				prev_c_type == NOTIFY_EVENT_HOST || 
-				prev_c_type == NOTIFY_EVENT_GAMEPAD) {
-				pr_err("now host mode, skip this command\n");
-				goto err2;
-			}
 			u_notify->ndev.mode = NOTIFY_HOST_MODE;
 			if (notify->is_wakelock)
 				wake_lock(&u_notify->wlock);
@@ -825,8 +817,7 @@ static void otg_notify_state(unsigned long event, int enable)
 				&& event != NOTIFY_EVENT_HOST) {
 		if (enable) {
 			if (notify->device_check_sec) {
-				if(prev_c_type != NOTIFY_EVENT_HOST)
-					u_notify->is_device = 0;
+				u_notify->is_device = 0;
 				u_notify->check_work_complete = 0;
 				schedule_delayed_work(&u_notify->check_work,
 					notify->device_check_sec*HZ);

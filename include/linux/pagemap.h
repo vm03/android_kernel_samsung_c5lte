@@ -276,6 +276,9 @@ typedef int filler_t(void *, struct page *);
 
 extern struct page * find_get_page(struct address_space *mapping,
 				pgoff_t index);
+pgoff_t page_cache_next_hole(struct address_space *mapping,
+                             pgoff_t index, unsigned long max_scan);
+
 extern struct page * find_lock_page(struct address_space *mapping,
 				pgoff_t index);
 extern struct page * find_or_create_page(struct address_space *mapping,
@@ -422,7 +425,7 @@ static inline int wait_on_page_locked_killable(struct page *page)
 	return 0;
 }
 
-/* 
+/*
  * Wait for a page to be unlocked.
  *
  * This must be called with the caller "holding" the page,
@@ -435,7 +438,7 @@ static inline void wait_on_page_locked(struct page *page)
 		wait_on_page_bit(page, PG_locked);
 }
 
-/* 
+/*
  * Wait for a page to complete writeback
  */
 static inline void wait_on_page_writeback(struct page *page)

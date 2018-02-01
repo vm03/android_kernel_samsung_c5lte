@@ -127,8 +127,8 @@
 		/*qcom,mdss-dsi-pwm-gpio=*/
 
 		qcom,mdss-dsi-bl-min-level = <1>;
-		qcom,mdss-dsi-bl-max-level = <255>;
-		qcom,mdss-brightness-max-level = <255>;
+		qcom,mdss-dsi-bl-max-level = <354>;
+		qcom,mdss-brightness-max-level = <354>;
 		qcom,mdss-dsi-interleave-mode = <0>;
 		qcom,mdss-dsi-panel-type = "dsi_cmd_mode";
 
@@ -218,6 +218,7 @@
 * ************************************************************************************************************************************
 */
 		samsung,mdss-power-on-reset-delay-us = <10000>;
+		samsung,enter_hbm_lux = <10000>;
 		samsung,support_panel_max = <1>;
 		samsung,hw-config = "split_dsi";
 		samsung,dsi-lp11-init;
@@ -356,7 +357,6 @@
 			29 01 00 00 00 00 03 F4 AB 21		/* VINT set*/
 			15 01 00 00 00 00 02 53 C0		/* HBM on*/
 		];
-
 		samsung,hbm_off_tx_cmds_revA = [
 			15 01 00 00 00 00 02 53 00		/* HBM off*/
 		];
@@ -846,5 +846,8 @@
 				29 01 00 00 00 00 02 F7 00
 				29 01 00 00 00 00 03 F0 A5 A5
 			];
+		samsung,hbm_candela_map_table_revA = <
+			0	354	354	500	6
+		>;
 	};
 };

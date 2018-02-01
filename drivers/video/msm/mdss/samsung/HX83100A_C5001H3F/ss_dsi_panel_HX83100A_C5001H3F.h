@@ -36,7 +36,5 @@ Copyright (C) 2012, Samsung Electronics. All rights reserved.
 
 #define HX83100A_C5001H3F_SUPPORT_PANEL_COUNT 1
 
-extern int isl98611_backlight_power(struct mdss_dsi_ctrl_pdata *ctrl, int enable);
-extern int isl98611_backlight_pwm_power(struct mdss_dsi_ctrl_pdata *ctrl, int enable);
-
+extern int isl98611_backlight_control(struct mdss_dsi_ctrl_pdata *ctrl, int enable);
 #endif

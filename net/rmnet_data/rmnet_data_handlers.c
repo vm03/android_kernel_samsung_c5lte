@@ -104,9 +104,10 @@ void rmnet_print_packet(const struct sk_buff *skb, const char *dev, char dir)
 	if (!printlen)
 		return;
 
-	pr_err("[%s][%c] - PKT skb->len=%d skb->head=%p skb->data=%p skb->tail=%p skb->end=%p\n",
-		dev, dir, skb->len, (void *)skb->head, (void *)skb->data,
-		skb_tail_pointer(skb), skb_end_pointer(skb));
+	pr_err("[%s][%c] - PKT skb->len=%d skb->head=%pK skb->data=%pK\n",
+	       dev, dir, skb->len, (void *)skb->head, (void *)skb->data);
+	pr_err("[%s][%c] - PKT skb->tail=%pK skb->end=%pK\n",
+	       dev, dir, skb_tail_pointer(skb), skb_end_pointer(skb));
 
 	if (skb->len > 0)
 		len = skb->len;
@@ -332,10 +333,12 @@ static rx_handler_result_t _rmnet_map_ingress_handler(struct sk_buff *skb,
 		if (likely((ckresult == RMNET_MAP_CHECKSUM_OK)
 			    || (ckresult == RMNET_MAP_CHECKSUM_SKIPPED)))
 			skb->ip_summed |= CHECKSUM_UNNECESSARY;
-		else if (ckresult != RMNET_MAP_CHECKSUM_ERR_UNKNOWN_IP_VERSION
-			&& ckresult != RMNET_MAP_CHECKSUM_ERR_UNKNOWN_TRANSPORT
-			&& ckresult != RMNET_MAP_CHECKSUM_VALID_FLAG_NOT_SET
-			&& ckresult != RMNET_MAP_CHECKSUM_FRAGMENTED_PACKET) {
+		else if (ckresult !=
+				    RMNET_MAP_CHECKSUM_ERR_UNKNOWN_IP_VERSION &&
+			 ckresult != RMNET_MAP_CHECKSUM_VALIDATION_FAILED &&
+			 ckresult != RMNET_MAP_CHECKSUM_ERR_UNKNOWN_TRANSPORT &&
+			 ckresult != RMNET_MAP_CHECKSUM_VALID_FLAG_NOT_SET &&
+			 ckresult != RMNET_MAP_CHECKSUM_FRAGMENTED_PACKET) {
 			rmnet_kfree_skb(skb,
 				RMNET_STATS_SKBFREE_INGRESS_BAD_MAP_CKSUM);
 			return RX_HANDLER_CONSUMED;
@@ -440,7 +443,12 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 		rmnet_stats_ul_checksum(ckresult);
 	}
 
-	map_header = rmnet_map_add_map_header(skb, additional_header_length);
+	if (!(config->egress_data_format & RMNET_EGRESS_FORMAT_AGGREGATION))
+		map_header = rmnet_map_add_map_header
+		(skb, additional_header_length, RMNET_MAP_NO_PAD_BYTES);
+	else
+		map_header = rmnet_map_add_map_header
+		(skb, additional_header_length, RMNET_MAP_ADD_PAD_BYTES);
 
 	if (!map_header) {
 		LOGD("%s", "Failed to add MAP header to egress packet");

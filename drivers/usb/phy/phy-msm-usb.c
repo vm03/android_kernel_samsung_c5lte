@@ -1710,7 +1710,7 @@ phcd_retry:
 	wake_up(&motg->host_suspend_wait);
 
 	if (host_bus_suspend || device_bus_suspend) {
-	/* Enable ASYNC IRQ during LPM */
+		/* Enable ASYNC IRQ during LPM */
 		enable_irq(motg->async_irq);
 		enable_irq(motg->irq);
 	}

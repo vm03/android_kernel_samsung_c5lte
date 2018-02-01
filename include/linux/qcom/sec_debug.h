@@ -38,6 +38,10 @@
 extern void *restart_reason_ddr_address;
 #endif
 
+#ifdef CONFIG_SEC_PERIPHERAL_SECURE_CHK
+extern void sec_peripheral_secure_check_fail(void);
+#endif
+
 #ifdef CONFIG_SEC_DEBUG
 #define SECDEBUG_MODE 0x776655ee
 

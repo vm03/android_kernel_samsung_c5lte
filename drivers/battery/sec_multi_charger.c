@@ -169,6 +169,15 @@ static int sec_multi_chg_check_charging_current(struct sec_multi_charger_info *c
 		sub_charging_current = 0;
 	}
 
+	if(charger->pdata->sub_charger_condition){
+		if( sub_charging_current>0 && sub_charging_current < charger->pdata->sub_charger_condition_current_now/2){
+			pr_info("%s : sub_charging_current(%d) sub_charger_condition_current_now(%d)\n",
+				__func__,sub_charging_current,charger->pdata->sub_charger_condition_current_now);
+			main_charging_current = charger->total_current.fast_charging_current;
+			sub_charging_current = 0;
+		}
+	}
+
 	/* set charging current */
 	if ((main_charging_current != charger->main_current.fast_charging_current) ||
 		(main_charging_current == 0 && charger->main_current.fast_charging_current == 0)) {

@@ -784,6 +784,11 @@
 		qcom,wlan-ramdump-dynamic = <0x200000>;
 		status = "okay";
 	};
+	
+	qcom,wcnss-wlan@0a000000 {
+		status = "disabled";
+	};
+	
 };
 
 &rpm_bus {
@@ -999,6 +1004,10 @@
 			qcom,lra-res-cal-period = <0>;
 		};
 	};
+
+//remove all unnecessary redundant PMI operation(qcom,pmi8950@2, qcom,pmi8950@3) by QC guide, case 02645142
+	/delete-node/ qcom,pmi8950@2;
+	/delete-node/ qcom,pmi8950@3;
 };
 
 &sdhc_1 {
@@ -1081,16 +1090,6 @@
 		#include "../qcom/batterydata-itech-3000mah-4200mv.dtsi"
 		#include "../qcom/batterydata-itech-3000mah.dtsi"
 	};
-};
-
-&pmi8950_fg {
-	qcom,battery-data = <&mtp_batterydata>;
-};
-
-&pmi8950_charger {
-	qcom,battery-data = <&mtp_batterydata>;
-	qcom,chg-led-support;
-	qcom,chg-led-sw-controls;
 };
 
 /* CoreSight */

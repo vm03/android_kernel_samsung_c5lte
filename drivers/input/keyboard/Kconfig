@@ -713,4 +713,5 @@ config CERTIFY_HALL
 	help
 	  Enable Certify Hall Feature
 
+source "drivers/input/keyboard/melfas_mip4/Kconfig"
 endif

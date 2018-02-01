@@ -148,11 +148,17 @@ struct sec_battery_info {
 	unsigned long charging_next_time;
 	unsigned long charging_fullcharged_time;
 
+	unsigned long lcd_on_total_time;
+	unsigned long lcd_on_time;
+
 	/* chg temperature check */
 	bool chg_limit;
 
 	/* temperature check */
 	int temperature;	/* battery temperature */
+#if defined(CONFIG_SEC_MPP_SHARE_LOW_TEMP_WA)
+	bool is_bat_temp_error;
+#endif
 	int temper_amb;		/* target temperature */
 	int chg_temp;		/* charger temperature */
 	int pre_chg_temp;
@@ -177,8 +183,10 @@ struct sec_battery_info {
 	unsigned int charging_mode;
 	bool is_recharging;
 	bool is_jig_on;
+	int wdt_kick_disable;
 	int cable_type;
 	int muic_cable_type;
+	int vbus_chg_by_siop;
 	struct wake_lock cable_wake_lock;
 	struct delayed_work cable_work;
 	struct wake_lock vbus_wake_lock;
@@ -209,6 +217,7 @@ struct sec_battery_info {
 	bool is_hc_usb;
 
 	int siop_level;
+	int r_siop_level;
 	int stability_test;
 	int eng_not_full_status;
 
@@ -233,6 +242,9 @@ struct sec_battery_info {
 #if defined(CONFIG_SW_SELF_DISCHARGING)
 	bool sw_self_discharging;
 	struct wake_lock self_discharging_wake_lock;
+#endif
+#if defined(CONFIG_BATTERY_AGE_FORECAST)
+	int batt_cycle;
 #endif
 };
 
@@ -345,6 +357,13 @@ enum {
 	BATT_SW_SELF_DISCHARGING,
 #endif
 	BATT_EXT_DEV_CHG,
+	BATT_WDT_CONTROL,
+#if defined(CONFIG_BATTERY_AGE_FORECAST)
+	FG_CYCLE,
+	FG_FULL_VOLTAGE,
+	FG_FULLCAPNOM,
+	BATTERY_CYCLE,
+#endif
 };
 
 enum {

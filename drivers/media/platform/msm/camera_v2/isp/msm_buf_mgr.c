@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -53,13 +53,13 @@ static int msm_buf_check_head_sanity(struct msm_isp_bufq *bufq)
 	next = bufq->head.next;
 
 	if (prev->next != &bufq->head) {
-		pr_err("%s: Error! head prev->next is %p should be %p\n",
+		pr_err("%s: Error! head prev->next is %pK should be %pK\n",
 			__func__, prev->next, &bufq->head);
 		return -EINVAL;
 	}
 
 	if (next->prev != &bufq->head) {
-		pr_err("%s: Error! head next->prev is %p should be %p\n",
+		pr_err("%s: Error! head next->prev is %pK should be %pK\n",
 			__func__, next->prev, &bufq->head);
 		return -EINVAL;
 	}
@@ -68,13 +68,13 @@ static int msm_buf_check_head_sanity(struct msm_isp_bufq *bufq)
 	next = bufq->share_head.next;
 
 	if (prev->next != &bufq->share_head) {
-		pr_err("%s: Error! share_head prev->next is %p should be %p\n",
+		pr_err("%s: Error! share_head prev->next is %pK should be %pK\n",
 			__func__, prev->next, &bufq->share_head);
 		return -EINVAL;
 	}
 
 	if (next->prev != &bufq->share_head) {
-		pr_err("%s: Error! share_head next->prev is %p should be %p\n",
+		pr_err("%s: Error! share_head next->prev is %pK should be %pK\n",
 			__func__, next->prev, &bufq->share_head);
 		return -EINVAL;
 	}
@@ -91,7 +91,7 @@ struct msm_isp_bufq *msm_isp_get_bufq(
 	uint32_t bufq_index = bufq_handle & 0xFF;
 
 	if ((bufq_handle == 0) ||
-		(bufq_index > buf_mgr->num_buf_q))
+		(bufq_index >= buf_mgr->num_buf_q))
 		return NULL;
 
 	bufq = &buf_mgr->bufq[bufq_index];
@@ -198,6 +198,12 @@ static int msm_isp_prepare_isp_buf(struct msm_isp_buf_mgr *buf_mgr,
 	else
 		iommu_hdl = buf_mgr->sec_iommu_hdl;
 
+	if (qbuf_buf->num_planes > MAX_PLANES_PER_STREAM) {
+		pr_err("%s: Invalid num_planes %d \n",
+			__func__, qbuf_buf->num_planes);
+		return -EINVAL;
+	}
+
 	for (i = 0; i < qbuf_buf->num_planes; i++) {
 		mapped_info = &buf_info->mapped_info[i];
 		mapped_info->buf_fd = qbuf_buf->planes[i].addr;
@@ -242,6 +248,12 @@ static void msm_isp_unprepare_v4l2_buf(
 	else
 		iommu_hdl = buf_mgr->sec_iommu_hdl;
 
+	if (buf_info->num_planes > VIDEO_MAX_PLANES) {
+		pr_err("%s: Invalid num_planes %d \n",
+			__func__, buf_info->num_planes);
+		return;
+	}
+
 	for (i = 0; i < buf_info->num_planes; i++) {
 		mapped_info = &buf_info->mapped_info[i];
 		if (mapped_info != NULL)
@@ -259,7 +271,7 @@ static int msm_isp_map_buf(struct msm_isp_buf_mgr *buf_mgr,
 	int iommu_hdl;
 
 	if (!buf_mgr || !mapped_info) {
-		pr_err_ratelimited("%s: %d] NULL ptr buf_mgr %p mapped_info %p\n",
+		pr_err_ratelimited("%s: %d] NULL ptr buf_mgr %pK mapped_info %pK\n",
 			__func__, __LINE__, buf_mgr, mapped_info);
 		return -EINVAL;
 	}

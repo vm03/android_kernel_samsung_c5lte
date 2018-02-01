@@ -130,8 +130,7 @@ static ssize_t sec_nfc_read(struct file *file, char __user *buf,
 	enum sec_nfc_irq irq;
 	int ret = 0;
 
-	dev_dbg(info->dev, "[NFC] %s: info: %p, count: %zu\n", __func__,
-		info, count);
+	dev_dbg(info->dev, "[NFC] %s: info: %p, count: %zu\n",__func__,info, count);
 
 #ifdef FEATURE_SEC_NFC_TEST
 	if (on_nfc_test)
@@ -208,8 +207,7 @@ static ssize_t sec_nfc_write(struct file *file, const char __user *buf,
 						struct sec_nfc_info, miscdev);
 	int ret = 0;
 
-	dev_dbg(info->dev, "[NFC] %s: info: %p, count %zu\n", __func__,
-		info, count);
+	dev_dbg(info->dev, "[NFC] %s: info: %p, count %zu\n", __func__,info, count);
 
 #ifdef FEATURE_SEC_NFC_TEST
 	if (on_nfc_test)
@@ -354,6 +352,7 @@ int sec_nfc_i2c_probe(struct i2c_client *client)
 
 	pr_info("%s success\n", __func__);
 	return 0;
+
 err_irq_req:
 	return ret;
 }
@@ -796,42 +795,43 @@ static CLASS_ATTR(test, 0664, sec_nfc_test_show, sec_nfc_test_store);
 
 static int sec_nfc_pinctrl(struct device *dev)
 {
-        int ret = 0;
-        struct pinctrl *nfc_pinctrl;
-        struct pinctrl_state *nfc_suspend;
-        struct pinctrl_state *nfc_active;
+	int ret = 0;
+	struct pinctrl *nfc_pinctrl;
+	struct pinctrl_state *nfc_suspend;
+	struct pinctrl_state *nfc_active;
 
-        /* Get pinctrl if target uses pinctrl */
-        nfc_pinctrl = devm_pinctrl_get(dev);
-        if (IS_ERR(nfc_pinctrl)) {
-                pr_debug("Target does not use pinctrl\n");
-                nfc_pinctrl = NULL;
-        } else {
-                nfc_suspend = pinctrl_lookup_state(nfc_pinctrl, "nfc_suspend");
-                nfc_active = pinctrl_lookup_state(nfc_pinctrl, "nfc_active");
-                if (IS_ERR(nfc_suspend)) {
-                        pr_info("%s fail to suspend lookup_state\n", __func__);
-                        goto err_exit;
-                }
-                if (IS_ERR(nfc_active)) {
-                        pr_info("%s fail to active lookup_state\n", __func__);
-                        goto err_exit;
-                }
-                ret = pinctrl_select_state(nfc_pinctrl, nfc_suspend);
-                if (ret != 0) {
-                        pr_err("%s: fail to select_state suspend\n", __func__);
-                        goto err_exit;
-                }
-                ret = pinctrl_select_state(nfc_pinctrl, nfc_active);
-                if (ret != 0) {
-                        pr_err("%s: fail to select_state active\n", __func__);
-                        goto err_exit;
-                }
-                devm_pinctrl_put(nfc_pinctrl);
-        }
+	/* Get pinctrl if target uses pinctrl */
+	nfc_pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR(nfc_pinctrl)) {
+		pr_debug("Target does not use pinctrl\n");
+		nfc_pinctrl = NULL;
+	} else {
+		nfc_suspend = pinctrl_lookup_state(nfc_pinctrl, "nfc_suspend");
+		nfc_active = pinctrl_lookup_state(nfc_pinctrl, "nfc_active");
+		if (IS_ERR(nfc_suspend)) {
+			pr_info("%s fail to suspend lookup_state\n", __func__);
+			goto err_exit;
+		}
+		if (IS_ERR(nfc_active)) {
+			pr_info("%s fail to active lookup_state\n", __func__);
+			goto err_exit;
+		}
+		ret = pinctrl_select_state(nfc_pinctrl, nfc_suspend);
+		if (ret != 0) {
+			pr_err("%s: fail to select_state suspend\n", __func__);
+			goto err_exit;
+		}
+		ret = pinctrl_select_state(nfc_pinctrl, nfc_active);
+		if (ret != 0) {
+			pr_err("%s: fail to select_state active\n", __func__);
+			goto err_exit;
+		}
+
+		devm_pinctrl_put(nfc_pinctrl);
+	}
 
 err_exit:
-        return ret;
+    return ret;
 }
 
 static int __sec_nfc_probe(struct device *dev)
@@ -839,10 +839,10 @@ static int __sec_nfc_probe(struct device *dev)
 	struct sec_nfc_info *info;
 	struct sec_nfc_platform_data *pdata = NULL;
 	int ret = 0;
-
 #ifdef FEATURE_SEC_NFC_TEST
-       struct class *nfc_class;
+	struct class *nfc_class;
 #endif
+
 	dev_info(dev, "[NFC]sec-nfc probe start \n");
 	if (dev->of_node) {
 		pdata = devm_kzalloc(dev,
@@ -863,11 +863,11 @@ static int __sec_nfc_probe(struct device *dev)
 		goto err_pdata;
 	}
 
-        ret = sec_nfc_pinctrl(dev);
-        if (ret) {
-                dev_err(dev, "[NFC] failed to nfc pinctrl\n");
-                goto err_pinctrl;
-        }
+	ret = sec_nfc_pinctrl(dev);
+	if (ret) {
+		dev_err(dev, "[NFC] failed to nfc pinctrl\n");
+		goto err_pinctrl;
+	}
 
 	info = kzalloc(sizeof(struct sec_nfc_info), GFP_KERNEL);
 	if (!info) {
@@ -947,8 +947,7 @@ static int __sec_nfc_probe(struct device *dev)
 	nfc_class = class_create(THIS_MODULE, "nfc_test");
 	if (IS_ERR(&nfc_class))
 		pr_err("NFC: failed to create nfc class\n");
-	else
-	{
+	else {
 		ret = class_create_file(nfc_class, &class_attr_test);
 		if (ret)
 			pr_err("NFC: failed to create attr_test\n");
@@ -984,14 +983,14 @@ static int __sec_nfc_remove(struct device *dev)
 
 	if (pdata->clk)
 		clk_unprepare(pdata->clk);
-
 	misc_deregister(&info->miscdev);
 	sec_nfc_set_mode(info, SEC_NFC_MODE_OFF);
 	free_irq(client->irq, info);
 	gpio_free(pdata->irq);
 	gpio_set_value(pdata->firm, 0);
 	gpio_free(pdata->ven);
-	if (pdata->firm) gpio_free(pdata->firm);
+	if (pdata->firm)
+		gpio_free(pdata->firm);
 	wake_lock_destroy(&info->nfc_wake_lock);
 
 	kfree(info);
@@ -1000,6 +999,7 @@ static int __sec_nfc_remove(struct device *dev)
 }
 
 MODULE_DEVICE_TABLE(i2c, sec_nfc_id_table);
+
 typedef struct i2c_driver sec_nfc_driver_type;
 #define SEC_NFC_INIT(driver)	i2c_add_driver(driver);
 #define SEC_NFC_EXIT(driver)	i2c_del_driver(driver);

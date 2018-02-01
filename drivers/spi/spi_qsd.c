@@ -3039,12 +3039,12 @@ static int msm_spi_probe(struct platform_device *pdev)
 			}
 		}
 #ifdef CONFIG_ESE_SECURE
-                if (pdev->id == CONFIG_ESE_SECURE_SPI_PORT) {
-                        pdata->use_bam = false;
-                        pr_info("%s: disable bam for BLSP tzspi, spi num(%d)\n",
-                                        __func__, pdev->id);
-                        goto skip_dma_resources;
-                }
+		if (pdev->id == CONFIG_ESE_SECURE_SPI_PORT) {
+			pdata->use_bam = false;
+			pr_info("%s: disable bam for BLSP tzspi, spi num(%d)\n",
+					__func__, pdev->id);
+			goto skip_dma_resources;
+		}
 #endif
 #ifdef ENABLE_SENSORS_FPRINT_SECURE
 		if (pdev->id == CONFIG_SENSORS_FP_SPI_NUMBER) {

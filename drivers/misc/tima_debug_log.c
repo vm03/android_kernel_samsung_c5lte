@@ -46,7 +46,7 @@ ssize_t	tima_read(struct file *filep, char __user *buf, size_t size, loff_t *off
 		printk(KERN_ERR"Extra read\n");
 		return -EINVAL;
 	}
-
+#if defined(CONFIG_ARCH_MSM8952)
 	if (copy_to_user(buf, (const char *)tima_debug_log_addr + (*offset), size)) {
 		printk(KERN_ERR"Copy to user failed\n");
 		return -1;
@@ -54,6 +54,11 @@ ssize_t	tima_read(struct file *filep, char __user *buf, size_t size, loff_t *off
 		*offset += size;
 		return size;
 	}
+#else
+	memcpy_fromio(buf, (const char *)tima_debug_log_addr + (*offset), size);
+	*offset += size;
+	return size;
+#endif
 }
 
 static const struct file_operations tima_proc_fops = {

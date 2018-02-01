@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -153,6 +153,7 @@ struct fd_ctx {
 	struct msm_fd_mem_pool mem_pool;
 	struct msm_fd_stats *stats;
 	struct msm_fd_buf_handle work_buf;
+	struct mutex lock;
 };
 
 /*
@@ -213,6 +214,7 @@ struct msm_fd_device {
 
 	struct mutex lock;
 	spinlock_t slock;
+	struct mutex recovery_lock;
 	int ref_count;
 
 	int irq_num;

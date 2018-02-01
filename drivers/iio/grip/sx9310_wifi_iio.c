@@ -509,6 +509,7 @@ static void sx9310_set_enable(struct sx9310_p *data, int enable)
 
 	SENSOR_INFO("[SX9310_W]\n");
 
+	atomic_set(&data->enable, enable);
 	if (enable == ON) {
 		sx9310_i2c_read(data, SX9310_STAT0_REG, &status);
 		SENSOR_INFO("[SX9310_W](status : 0x%x)\n", status);
@@ -520,6 +521,7 @@ static void sx9310_set_enable(struct sx9310_p *data, int enable)
 		sx9310_get_data(data);
 
 		if (data->skip_data == true) {
+			data->iio_state = IDLE;
 			sx9310_grip_data_rdy_trig_poll(data);
 		} else if ((status & (CSX_STATUS_REG << MAIN_SENSOR))
 				&& (data->reset_flag == false)) {
@@ -819,8 +821,9 @@ static ssize_t sx9310_onoff_store(struct device *dev,
 
 	if (val == 0) {
 		data->skip_data = true;
+		data->state = IDLE;
+		data->iio_state = IDLE;
 		if (atomic_read(&data->enable) == ON) {
-			data->state = IDLE;
 			sx9310_grip_data_rdy_trig_poll(data);
 		}
 	} else {

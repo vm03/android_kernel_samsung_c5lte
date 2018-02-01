@@ -70,7 +70,7 @@
 #ifdef CM36655_CANCELATION
 #define CANCELATION_FILE_PATH	"/efs/FactoryApp/prox_cal"
 #define CAL_SKIP_ADC	11
-#define CAL_FAIL_ADC	18
+#define CAL_FAIL_ADC	31
 #endif
 
 #define PROX_READ_NUM		40

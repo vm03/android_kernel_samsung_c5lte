@@ -972,5 +972,21 @@
 			drive-strength = <2>;
 		};
 	};
+	sdc3_wlan_gpio {
+		qcom,pins = <&gp 34>;
+		qcom,num-grp-pins = <1>;
+		qcom,pin-func = <0>;
+		label = "wlan_en_gpio";
+		sdc3_wlan_gpio_active: sdc3_wlan_gpio_active {
+			output-high;
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+		sdc3_wlan_gpio_sleep: sdc3_wlan_gpio_sleep { 
+			output-low;	
+			drive-strength = <2>; 
+			bias-disable; 
+		}; 
+	};		
   };
 };

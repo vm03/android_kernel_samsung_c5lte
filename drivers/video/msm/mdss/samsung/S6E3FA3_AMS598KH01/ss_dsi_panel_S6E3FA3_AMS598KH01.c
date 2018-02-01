@@ -278,6 +278,29 @@ static int mdss_hbm_read(struct mdss_dsi_ctrl_pdata *ctrl)
 	}
 	return true;
 }
+
+static int get_hbm_candela_value(int level)
+{
+	if (level == 13)
+		return 443;
+	else if (level == 6)
+		return 465;
+	else if (level == 7)
+		return 488;
+	else if (level == 8)
+		return 510;
+	else if (level == 9)
+		return 533;
+	else if (level == 10)
+		return 555;
+	else if (level == 11)
+		return 578;
+	else if (level == 12)
+		return 600;
+	else
+		return 600;
+}
+
 static struct dsi_panel_cmds *mdss_hbm_gamma(struct mdss_dsi_ctrl_pdata *ctrl, int *level_key)
 {
 	struct samsung_display_driver_data *vdd = check_valid_ctrl(ctrl);
@@ -340,6 +363,9 @@ static struct dsi_panel_cmds *mdss_hbm_etc(struct mdss_dsi_ctrl_pdata *ctrl, int
 			break;
 		case 11: /*578*/
 			B6_2ND_PARA = 0x06;
+			break;
+		case 13: /*443*/
+			B6_2ND_PARA = 0x0F;
 			break;
 
 		}
@@ -565,28 +591,6 @@ end :
 	return NULL;
 }
 
-static int mdss_force_acl_on(struct mdss_dsi_ctrl_pdata *ctrl)
-{
-	struct samsung_display_driver_data *vdd = check_valid_ctrl(ctrl);
-	int acl_on;
-
-	if (IS_ERR_OR_NULL(vdd)) {
-		pr_err("%s: Invalid data ctrl : 0x%zx vdd : 0x%zx", __func__, (size_t)ctrl, (size_t)vdd);
-		return false;
-	}
-
-	/* acl is always on */
-	acl_on = 1;
-
-	/* Gallery & Max brightness */
-	if ((vdd->weakness_hbm_comp == 2) && (vdd->bl_level == 255))
-		acl_on = 0;
-
-	pr_err("%s : acl_on(%d)\n", __func__, acl_on);
-
-	return acl_on;
-}
-
 static struct dsi_panel_cmds * mdss_acl_on(struct mdss_dsi_ctrl_pdata *ctrl, int *level_key)
 {
 	struct samsung_display_driver_data *vdd = check_valid_ctrl(ctrl);
@@ -620,8 +624,7 @@ static struct dsi_panel_cmds * mdss_acl_precent(struct mdss_dsi_ctrl_pdata *ctrl
 {
 	struct samsung_display_driver_data *vdd = check_valid_ctrl(ctrl);
 	int cd_index = 0;
-	/* 0 : ACL OFF, 1: ACL 30%, 2: ACL 15%, 3: ACL 50% */
-	int cmd_idx = ACL_15;
+	int cmd_idx = 0;
 
 	if (IS_ERR_OR_NULL(vdd)) {
 		pr_err("%s: Invalid data ctrl : 0x%zx vdd : 0x%zx", __func__, (size_t)ctrl, (size_t)vdd);
@@ -633,6 +636,8 @@ static struct dsi_panel_cmds * mdss_acl_precent(struct mdss_dsi_ctrl_pdata *ctrl
 	if (!vdd->dtsi_data[ctrl->ndx].acl_map_table[vdd->panel_revision].size ||
 		cd_index > vdd->dtsi_data[ctrl->ndx].acl_map_table[vdd->panel_revision].size)
 		goto end;
+
+	cmd_idx = vdd->dtsi_data[ctrl->ndx].acl_map_table[vdd->panel_revision].cmd_idx[cd_index];
 
 	acl_percent_cmd.cmds = &(vdd->dtsi_data[ctrl->ndx].acl_percent_tx_cmds[vdd->panel_revision].cmds[cmd_idx]);
 	acl_percent_cmd.cmd_cnt = 1;
@@ -861,6 +866,7 @@ static int samsung_osc_te_fitting_get_cmd(struct te_fitting_lut *lut, long long 
 
 }
 #endif
+
 static void dsi_update_mdnie_data(void)
 {
 	/* Update mdnie command */
@@ -891,6 +897,10 @@ static void dsi_update_mdnie_data(void)
 	mdnie_data.dsi0_rgb_sensor_mdnie_1_size = DSI0_RGB_SENSOR_MDNIE_1_SIZE;
 	mdnie_data.dsi0_rgb_sensor_mdnie_2_size = DSI0_RGB_SENSOR_MDNIE_2_SIZE;
 	mdnie_data.dsi0_rgb_sensor_mdnie_index = MDNIE_RGB_SENSOR_INDEX;
+	mdnie_data.dsi0_adjust_ldu_table = adjust_ldu_data;
+	mdnie_data.dsi1_adjust_ldu_table = adjust_ldu_data;
+	mdnie_data.dsi0_max_adjust_ldu = 6;
+	mdnie_data.dsi1_max_adjust_ldu = 6;
 }
 
 static void mdss_panel_init(struct samsung_display_driver_data *vdd)
@@ -931,6 +941,8 @@ static void mdss_panel_init(struct samsung_display_driver_data *vdd)
 	/* HBM */
 	vdd->panel_func.samsung_hbm_gamma = mdss_hbm_gamma;;
 	vdd->panel_func.samsung_hbm_etc = mdss_hbm_etc;
+	vdd->panel_func.samsung_hbm_irc = NULL;
+	vdd->panel_func.get_hbm_candela_value = get_hbm_candela_value;
 
 	vdd->manufacture_id_dsi[0] = PBA_ID;
 
@@ -938,8 +950,8 @@ static void mdss_panel_init(struct samsung_display_driver_data *vdd)
 
 	dsi_update_mdnie_data();
 
-	/* force ACL */
-	vdd->panel_func.samsung_force_acl_on = mdss_force_acl_on;
+	/* ACL default ON */
+	vdd->acl_status = 1;
 }
 
 static int __init samsung_panel_init(void)

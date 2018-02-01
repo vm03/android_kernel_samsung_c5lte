@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -212,8 +212,8 @@ void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
 	}
 #endif
 
-	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 
+	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 #if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
 	mutex_unlock(&LP_STOP_MODE_LOCK);
 #endif
@@ -250,11 +250,7 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 		if (pinfo->dcs_cmd_by_left && (ctrl->ndx != DSI_CTRL_LEFT))
 			return;
 		else
-		{
-			mutex_lock(&samsung_get_vdd()->vdd_bl_level_lock);
 			mdss_samsung_brightness_dcs(ctrl, level);
-			mutex_unlock(&samsung_get_vdd()->vdd_bl_level_lock);
-		}
 
 		return;
 	}
@@ -384,12 +380,13 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 				}
 			}
 #if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
-			if(vdd->dtsi_data[ctrl_pdata->ndx].samsung_power_on_reset_delay)
-				usleep(vdd->dtsi_data[ctrl_pdata->ndx].samsung_power_on_reset_delay);
+		if(vdd->dtsi_data[ctrl_pdata->ndx].samsung_power_on_reset_delay)
+			usleep(vdd->dtsi_data[ctrl_pdata->ndx].samsung_power_on_reset_delay);
 
-			if (vdd->panel_func.samsung_panel_reset_control)
-				vdd->panel_func.samsung_panel_reset_control(ctrl_pdata, enable);
+		if (vdd->panel_func.samsung_panel_reset_control)
+			vdd->panel_func.samsung_panel_reset_control(ctrl_pdata, enable);
 #endif
+
 			if (gpio_is_valid(ctrl_pdata->rst_gpio)) {
 				for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
 					gpio_set_value((ctrl_pdata->rst_gpio),
@@ -397,9 +394,6 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 					if (pdata->panel_info.rst_seq[++i])
 						usleep(pinfo->rst_seq[i] * 1000);
 				}
-#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
-				vdd->reset_time_64 = ktime_to_ms(ktime_get());
-#endif
 			}
 
 			if (gpio_is_valid(ctrl_pdata->bklt_en_gpio)) {
@@ -441,9 +435,6 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			gpio_free(ctrl_pdata->bklt_en_gpio);
 		}
 #if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
-		if (vdd->panel_func.samsung_panel_reset_control)
-			vdd->panel_func.samsung_panel_reset_control(ctrl_pdata, enable);
-
 		if (gpio_is_valid(ctrl_pdata->rst_gpio)) {
 		gpio_set_value((ctrl_pdata->rst_gpio), 0);
 		gpio_free(ctrl_pdata->rst_gpio);
@@ -453,6 +444,9 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
 			gpio_free(ctrl_pdata->disp_en_gpio);
 		}
+
+		if (vdd->panel_func.samsung_panel_reset_control)
+			vdd->panel_func.samsung_panel_reset_control(ctrl_pdata, enable);
 #else
 		if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
@@ -711,14 +705,13 @@ static void mdss_dsi_panel_switch_mode(struct mdss_panel_data *pdata,
 
 	return;
 }
-
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
 static int mdss_dsi_panel_registered(struct mdss_panel_data *pdata)
 {
-#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
 	mdss_samsung_dsi_panel_registered(pdata);
-#endif
 	return 0;
 }
+#endif
 
 static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 							u32 bl_level)
@@ -790,14 +783,6 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	u32 reg_data, i;
 	struct samsung_display_driver_data *vdd = samsung_get_vdd();
 
-	s64 cur_time_64;
-
-	int wait_time_32;
-	s64 wait_time_64;
-
-	int reset_delay_32;
-	s64 reset_delay_64;
-
 	ATRACE_BEGIN(__func__);
 	mutex_lock(&STATUS_CHANGE);
 #endif
@@ -814,7 +799,7 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
-	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
+	pr_debug("%s: ctrl=%pK ndx=%d\n", __func__, ctrl, ctrl->ndx);
 
 	if (pinfo->dcs_cmd_by_left) {
 		if (ctrl->ndx != DSI_CTRL_LEFT)
@@ -859,33 +844,6 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 		mutex_unlock(&LP_STOP_MODE_LOCK);
 	}
 
-	if (vdd->dtsi_data[ctrl->ndx].samsung_wait_after_reset_delay) {
-		reset_delay_32 = vdd->dtsi_data[ctrl->ndx].samsung_wait_after_reset_delay;
-		reset_delay_64 = (s64)reset_delay_32;
-
-		cur_time_64 = ktime_to_ms(ktime_get());
-
-		wait_time_64 = reset_delay_64  - (cur_time_64 - vdd->reset_time_64);
-
-		/* To protect 64bit overflow & underflow */
-		if (wait_time_64 <= 0)
-			wait_time_32 = 0;
-		else if (wait_time_64 > reset_delay_64)
-			wait_time_32 = reset_delay_32;
-		else
-			wait_time_32 = (s32)wait_time_64;
-
-		if (wait_time_32 > 0) {
-			LCD_INFO("reset_delay:%d reset_t:%llu cur_t:%llu wait_t:%d start\n", reset_delay_32, vdd->reset_time_64, cur_time_64, wait_time_32);
-			usleep(wait_time_32 * 1000);
-			LCD_INFO("wait_t: %d end\n", wait_time_32);
-		} else
-			LCD_INFO("reset_delay:%d reset_t:%llu cur_t:%llu wait_t:%d skip\n", reset_delay_32, vdd->reset_time_64, cur_time_64, wait_time_32);
-	}
-
-	if (vdd->dtsi_data[ctrl->ndx].samsung_dsi_force_clock_lane_hs)
-		mdss_samsung_dsi_force_hs(pdata);
-
 	if (ctrl->cmd_sync_wait_broadcast) {
 		if (ctrl->cmd_sync_wait_trigger)
 			mdss_samsung_panel_on_pre(pdata);
@@ -903,7 +861,7 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 			(pinfo->mipi.boot_mode != pinfo->mipi.mode))
 		on_cmds = &ctrl->post_dms_on_cmds;
 
-	pr_info("%s: ctrl=%p cmd_cnt=%d\n", __func__, ctrl, on_cmds->cmd_cnt);
+	pr_info("%s: ctrl=%pK cmd_cnt=%d\n", __func__, ctrl, on_cmds->cmd_cnt);
 
 	if (on_cmds->cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, on_cmds);
@@ -915,8 +873,6 @@ end:
 #if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
 	pinfo->blank_state = MDSS_PANEL_BLANK_UNBLANK;
 
-	vdd->sleep_out_time_64 = ktime_to_ms(ktime_get());
-
 	if (ctrl->cmd_sync_wait_broadcast) {
 		if (ctrl->cmd_sync_wait_trigger)
 			mdss_samsung_panel_on_post(pdata);
@@ -926,7 +882,6 @@ end:
 		else
 			mdss_samsung_panel_on_post(pdata);
 	}
-
 	pinfo->panel_state = true;
 #endif
 
@@ -955,7 +910,7 @@ static int mdss_dsi_post_panel_on(struct mdss_panel_data *pdata)
 	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
-	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
+	pr_debug("%s: ctrl=%pK ndx=%d\n", __func__, ctrl, ctrl->ndx);
 
 	pinfo = &pdata->panel_info;
 	if (pinfo->dcs_cmd_by_left) {
@@ -965,7 +920,7 @@ static int mdss_dsi_post_panel_on(struct mdss_panel_data *pdata)
 
 	on_cmds = &ctrl->post_panel_on_cmds;
 
-	pr_debug("%s: ctrl=%p cmd_cnt=%d\n", __func__, ctrl, on_cmds->cmd_cnt);
+	pr_debug("%s: ctrl=%pK cmd_cnt=%d\n", __func__, ctrl, on_cmds->cmd_cnt);
 
 	if (on_cmds->cmd_cnt) {
 		msleep(50);	/* wait for 3 vsync passed */
@@ -1007,7 +962,7 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
-	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
+	pr_debug("%s: ctrl=%pK ndx=%d\n", __func__, ctrl, ctrl->ndx);
 
 	if (pinfo->dcs_cmd_by_left) {
 		if (ctrl->ndx != DSI_CTRL_LEFT)
@@ -1064,7 +1019,7 @@ static int mdss_dsi_panel_low_power_config(struct mdss_panel_data *pdata,
 	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
-	pr_debug("%s: ctrl=%p ndx=%d enable=%d\n", __func__, ctrl, ctrl->ndx,
+	pr_debug("%s: ctrl=%pK ndx=%d enable=%d\n", __func__, ctrl, ctrl->ndx,
 		enable);
 #if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
 	/* Any panel specific low power commands/config */
@@ -1074,6 +1029,9 @@ static int mdss_dsi_panel_low_power_config(struct mdss_panel_data *pdata,
 		pinfo->blank_state = MDSS_PANEL_BLANK_UNBLANK;
 #endif
 	/* Any panel specific low power commands/config */
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+		mdss_samsung_panel_low_power_config(pdata, enable);
+#endif
 
 	pr_debug("%s:-\n", __func__);
 	return 0;
@@ -1918,7 +1876,7 @@ static void mdss_dsi_parse_esd_params(struct device_node *np,
 #if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
 		else if (!strcmp(string, "reg_read_irq")) {
 			ctrl->status_mode = ESD_REG_IRQ;
-			pr_err("%s : ststus mode (ESD_REG_IRQ) \n", __func__);
+			pr_err("%s : status mode (ESD_REG_IRQ) \n", __func__);
 		}
 #endif
 		else {

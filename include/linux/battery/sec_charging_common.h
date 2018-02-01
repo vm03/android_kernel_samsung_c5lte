@@ -596,6 +596,7 @@ struct sec_battery_platform_data {
 	unsigned int swelling_drop_float_voltage;
 	unsigned int swelling_high_rechg_voltage;
 	unsigned int swelling_low_rechg_voltage;
+	unsigned int swelling_offset_voltage;
 
 	/* HV charging , Prevent heat up and Scald */
 	unsigned int hv_overheat_check;
@@ -768,6 +769,9 @@ struct sec_battery_platform_data {
 	unsigned long recharging_total_time;
 	/* reset charging for abnormal malfunction (0: not use) */
 	unsigned long charging_reset_time;
+	unsigned int hv_charging_total_time;
+	unsigned int normal_charging_total_time;
+	unsigned int usb_charging_total_time;
 
 	/* fuel gauge */
 	char *fuelgauge_name;

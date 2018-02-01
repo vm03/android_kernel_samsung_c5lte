@@ -737,8 +737,20 @@
 		vdd-wlan-supply = <&rome_vreg>;
 		vdd-wlan1p1-supply = <&rome_vreg1p1>;
 		vdd-wlan-io-supply = <&pm8950_l5>;
+		qcom,msm-bus,name = "msm-cnss";
+	        qcom,msm-bus,num-cases = <4>;
+	        qcom,msm-bus,num-paths = <1>;
+	        qcom,msm-bus,vectors-KBps =
+			<79 512 0 0>,           /* No vote */
+			<79 512 6250 200000>,   /* 50 Mbps */
+			<79 512 25000 200000>,  /* 200 Mbps */
+			<79 512 2048000 4096000>; /* 800 Mbps */ 
 		qcom,wlan-ramdump-dynamic = <0x200000>;
 		status = "okay";
+	};
+
+	qcom,wcnss-wlan@0a000000 {
+		status = "disabled";
 	};
 };
 
@@ -955,6 +967,10 @@
 			qcom,lra-res-cal-period = <0>;
 		};
 	};
+
+//remove all unnecessary redundant PMI operation(qcom,pmi8950@2, qcom,pmi8950@3) by QC guide, case 02645142
+	/delete-node/ qcom,pmi8950@2;
+	/delete-node/ qcom,pmi8950@3;
 };
 
 &sdhc_1 {
@@ -1028,7 +1044,7 @@
 	pinctrl-names = "active", "sleep";
 	pinctrl-0 = <&sdc3_clk_on &sdc3_cmd_on &sdc3_dat_on
 					&sdc3_wlan_gpio_active>;
-	pinctrl-1 = <&sdc3_clk_off &sdc3_cmd_off &sdc3_dat_off>;
+	pinctrl-1 = <&sdc3_clk_off &sdc3_cmd_off &sdc3_dat_off &sdc3_wlan_gpio_sleep>;
 	status = "ok";
 };
 
@@ -1039,16 +1055,6 @@
 		#include "../qcom/batterydata-itech-3000mah-4200mv.dtsi"
 		#include "../qcom/batterydata-itech-3000mah.dtsi"
 	};
-};
-
-&pmi8950_fg {
-	qcom,battery-data = <&mtp_batterydata>;
-};
-
-&pmi8950_charger {
-	qcom,battery-data = <&mtp_batterydata>;
-	qcom,chg-led-support;
-	qcom,chg-led-sw-controls;
 };
 
 /* CoreSight */

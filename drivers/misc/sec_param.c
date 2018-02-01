@@ -193,6 +193,11 @@ bool sec_get_param(enum sec_param_index index, void *value)
 		memcpy(value, param_data->param_barcode_info, sizeof(param_data->param_barcode_info));
 		break;
 #endif
+#ifdef CONFIG_SKU_THEME
+	case param_index_skutheme_info:
+		memcpy(value, param_data->param_skutheme_info, sizeof(param_data->param_skutheme_info));
+		break;
+#endif
 	case param_index_afc_disable:
 		memcpy(value, &(param_data->afc_disable), sizeof(unsigned int));
 		break;
@@ -277,6 +282,12 @@ bool sec_set_param(enum sec_param_index index, void *value)
 	case param_index_barcode_info:
 		memcpy(param_data->param_barcode_info,
 				value, sizeof(param_data->param_barcode_info));
+		break;
+#endif
+#ifdef CONFIG_SKU_THEME
+	case param_index_skutheme_info:
+		memcpy(param_data->param_skutheme_info,
+				value, sizeof(param_data->param_skutheme_info));
 		break;
 #endif
 	case param_index_afc_disable:

@@ -33,9 +33,7 @@
 
 #include <linux/sec_class.h>
 
-#if defined(CONFIG_QPNP_RESIN)
 #include <linux/qpnp/power-on.h>
-#endif
 
 #if defined(CONFIG_SEC_DEBUG)
 #include <linux/qcom/sec_debug.h>
@@ -401,7 +399,6 @@ static irqreturn_t gpio_keys_gpio_isr(int irq, void *dev_id)
 	if (suspend_state) {
 		irq_in_suspend = true;
 		wakeup_reason = bdata->button->code;
-
 		pr_info("%s before resume by %d\n", __func__, wakeup_reason);
 	}
 
@@ -791,8 +788,6 @@ static ssize_t  sysfs_key_onoff_show(struct device *dev,
 	return snprintf(buf, 5, "%d\n", state);
 }
 
-static DEVICE_ATTR(sec_key_pressed, 0444 , sysfs_key_onoff_show, NULL);
-
 static ssize_t wakeup_enable(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -828,7 +823,72 @@ out:
 	return count;
 }
 
+static ssize_t keycode_pressed_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct gpio_keys_drvdata *ddata = dev_get_drvdata(dev);
+	int index;
+	int state, keycode;
+	char *buff;
+	char tmp[7] = {0};
+	ssize_t count;
+	int len = (ddata->pdata->nbuttons + 2) * 7 + 2;
+
+	buff = kmalloc(len, GFP_KERNEL);
+	if (!buff) {
+		pr_err("%s %s: failed to mem alloc\n", SECLOG, __func__);
+		return snprintf(buf, 5, "NG\n");
+	}
+
+	for (index = 0; index < ddata->pdata->nbuttons; index++) {
+		struct gpio_button_data *button;
+
+		button = &ddata->data[index];
+		state = (__gpio_get_value(button->button->gpio) ? 1 : 0)
+			^ button->button->active_low;
+		keycode = button->button->code;
+		if (index == 0) {
+			snprintf(buff, 7, "%d:%d", keycode, state);
+		} else {
+			snprintf(tmp, 7, ",%d:%d", keycode, state);
+			strncat(buff, tmp, 7);
+		}
+	}
+
+	state = get_pkey_press();
+	keycode = KEY_POWER;
+	snprintf(tmp, 7, ",%d:%d", keycode, state);
+	strncat(buff, tmp, 7);
+
+#if defined(CONFIG_QPNP_RESIN)
+	state = qpnp_resin_state();
+	keycode = KEY_VOLUMEDOWN;
+	snprintf(tmp, 7, ",%d:%d", keycode, state);
+	strncat(buff, tmp, 7);
+#endif
+
+	pr_info("%s %s: %s\n", SECLOG, __func__, buff);
+	count = snprintf(buf, strnlen(buff, len - 2) + 2, "%s\n", buff);
+
+	kfree(buff);
+
+	return count;
+}
+
+static DEVICE_ATTR(sec_key_pressed, 0444 , sysfs_key_onoff_show, NULL);
 static DEVICE_ATTR(wakeup_keys, 0220, NULL, wakeup_enable);
+static DEVICE_ATTR(keycode_pressed, 0444 , keycode_pressed_show, NULL);
+
+static struct attribute *sec_key_attrs[] = {
+	&dev_attr_sec_key_pressed.attr,
+	&dev_attr_wakeup_keys.attr,
+	&dev_attr_keycode_pressed.attr,
+	NULL,
+};
+
+static struct attribute_group sec_key_attr_group = {
+	.attrs = sec_key_attrs,
+};
 
 static int gpio_keys_probe(struct platform_device *pdev)
 {
@@ -928,16 +988,10 @@ static int gpio_keys_probe(struct platform_device *pdev)
 	if (IS_ERR(sec_key))
 		pr_err("Failed to create device(sec_key)!\n");
 
-	error = device_create_file(sec_key, &dev_attr_sec_key_pressed);
+	error = sysfs_create_group(&sec_key->kobj, &sec_key_attr_group);
 	if (error) {
-		pr_err("Failed to create device file in sysfs entries(%s)!\n",
-				dev_attr_sec_key_pressed.attr.name);
-	}
-
-	error = device_create_file(sec_key, &dev_attr_wakeup_keys);
-	if (error < 0) {
-		pr_err("Failed to create device file(%s), error: %d\n",
-				dev_attr_wakeup_keys.attr.name, error);
+		pr_err("Unable to create sysfs_group, error: %d\n",
+			error);
 	}
 	dev_set_drvdata(sec_key, ddata);
 	device_init_wakeup(&pdev->dev, wakeup);

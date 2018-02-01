@@ -103,6 +103,11 @@ enum {
 #define INPUT_CURRENT_TA		                1000
 #define INPUT_CURRENT_WPC		                500
 
+#define ENABLE 1
+#define DISABLE 0
+
+extern bool sec_bat_get_slate_mode(void);
+
 struct sm5705_charger_data {
 	struct device *dev;
 	struct i2c_client *i2c;

@@ -446,7 +446,7 @@ static int mdss_force_acl_on(struct mdss_dsi_ctrl_pdata *ctrl)
 	if ((vdd->weakness_hbm_comp == 2) && (vdd->bl_level == 255))
 		acl_on = 0;
 
-	pr_err("%s : acl_on(%d)\n", __func__, acl_on);
+	pr_info("%s : acl_on(%d)\n", __func__, acl_on);
 
 	return acl_on;
 }
@@ -461,6 +461,7 @@ static struct dsi_panel_cmds * mdss_acl_on(struct mdss_dsi_ctrl_pdata *ctrl, int
 	}
 
 	*level_key = PANEL_LEVE1_KEY;
+	pr_err("%s : acl_on\n", __func__);
 
 	return &(vdd->dtsi_data[ctrl->ndx].acl_on_tx_cmds[vdd->panel_revision]);
 }
@@ -475,6 +476,7 @@ static struct dsi_panel_cmds * mdss_acl_off(struct mdss_dsi_ctrl_pdata *ctrl, in
 	}
 
 	*level_key = PANEL_LEVE1_KEY;
+	pr_err("%s : mdss_acl_off\n", __func__);
 
 	return &(vdd->dtsi_data[ctrl->ndx].acl_off_tx_cmds[vdd->panel_revision]);
 }
@@ -1072,6 +1074,9 @@ static void  mdss_panel_init(struct samsung_display_driver_data *vdd)
 
 	/* force ACL */
 	vdd->panel_func.samsung_force_acl_on = mdss_force_acl_on;
+
+	/* ACL default ON */
+	vdd->acl_status = 1;
 }
 
 static int __init samsung_panel_init(void)

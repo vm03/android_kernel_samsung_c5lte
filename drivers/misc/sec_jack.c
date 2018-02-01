@@ -312,6 +312,9 @@ static void sec_jack_set_type(struct sec_jack_info *hi,
 			mod_timer(&hi->timer,
 				jiffies + msecs_to_jiffies(1000));
 	} else {
+		/* micbias is left enabled for 4pole and disabled otherwise */
+		set_sec_micbias_state(hi, false);
+
 		/* for all other jacks, disable send/end key detection */
 		if (hi->send_key_dev != NULL) {
 			/* disable to prevent false events on next insert */
@@ -320,8 +323,6 @@ static void sec_jack_set_type(struct sec_jack_info *hi,
 			del_timer_sync(&hi->timer);
 			hi->buttons_enable = false;
 		}
-		/* micbias is left enabled for 4pole and disabled otherwise */
-		set_sec_micbias_state(hi, false);
 	}
 
 	hi->cur_jack_type = jack_type;

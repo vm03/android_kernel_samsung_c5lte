@@ -489,6 +489,21 @@
 			};
 		};
 
+
+                pmx_sdc2_clk {
+                        qcom,pins = <&sdc 4>;
+                        qcom,num-grp-pins = <1>;
+                        label = "sdc2-clk";
+                        sdc2_clk_on: clk_on {
+                                bias-disable; /* NO pull */
+                                drive-strength = <10>; /* 10 MA */
+                        };
+                        sdc2_clk_off: clk_off {
+                                bias-disable; /* NO pull */
+                                drive-strength = <2>; /* 2 MA */
+                        };
+                };
+
 		pmx_sdc2_cmd {
 			qcom,pins = <&sdc 5>;
 			qcom,num-grp-pins = <1>;
@@ -520,6 +535,23 @@
 
 		/delete-node/ tpiu_seta_18;
 		/delete-node/ pri-tlmm-lines;
+		
+		pmx_mdss_esd: pmx_mdss_esd {		// GPIO 133
+			label = "mdss-esd-pin";
+			qcom,pin-func = <0>;
+			mdss_esd_active: active {
+				drive-strength = <2>;
+				bias-pull-down; /* PULL DOWN */
+				input-enable;
+			};
+			mdss_esd_suspend: suspend {
+				drive-strength = <2>;
+				bias-pull-down; /* PULL DOWN */
+				input-enable;
+			};
+		};
+
+
 };
 
 &soc {
@@ -621,7 +653,24 @@
 			output-low;
 		};
 	};
+	
+	cdc-reset-line {
+		qcom,num-grp-pins = <0>;
+		qcom,pin-func = <0>;
+		label = "cdc-reset-line";
+		cdc_reset_line_act: cdc_reset_line_on {
+			drive-strength = <16>;
+			bias-disable;
+			output-high;
+		};
 
+		cdc_reset_line_sus: cdc_reset_line_off {
+			drive-strength = <16>;
+			bias-disable;
+			output-low;
+		};
+	};
+	
     earjack_det_gpio {
       qcom,pins = <&gp 144>;
       qcom,pin-func = <0>;

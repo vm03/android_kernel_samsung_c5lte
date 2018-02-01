@@ -11,6 +11,10 @@
  * GNU General Public License for more details.
  */
 &soc {
+	qcom,msm-thermal {
+		qcom,mx-restriction-sensor_id = <2>;
+	};
+	
 	usb_noti: usb-notifier {
 		compatible = "samsung,usb-notifier";
 	};
@@ -374,16 +378,16 @@
 };
 
 &secure_mem{
-	reg = <0x0 0x0 0x0 0x8600000>;
+	reg = <0x0 0x0 0x0 0x9C00000>;
 };
 
 &qcom_seecom{
-	reg = <0x84B00000 0xF00000>;
+	reg = <0x84700000 0x1300000>;
 	status = "okay";
 };
 
 &other_ext_mem{
-	reg = <0x0 0x84B00000 0x0 0x1D00000>;
+	reg = <0x0 0x84700000 0x0 0x2100000>;
 };
 
 &modem_mem{

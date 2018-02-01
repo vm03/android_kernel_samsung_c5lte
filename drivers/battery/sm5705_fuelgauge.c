@@ -2404,7 +2404,7 @@ static int sm5705_fg_get_property(struct power_supply *psy,
 		break;
 	/* Current (mA) */
 	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_REGULATION:
-		val->intval = sm5705_fg_get_jig_mode_real_vbat(fuelgauge->client) / 10;
+		val->intval = sm5705_fg_get_jig_mode_real_vbat(fuelgauge->client);
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		sm5705_get_curr(fuelgauge->client);

@@ -1309,7 +1309,7 @@ int sec_debug_is_enabled_for_ssr(void)
 #endif
 
 #ifdef CONFIG_SEC_FILE_LEAK_DEBUG
-void sec_debug_print_file_list(void)
+int sec_debug_print_file_list(void)
 {
 	int i=0;
 	unsigned int nCnt=0;
@@ -1317,6 +1317,7 @@ void sec_debug_print_file_list(void)
 	struct files_struct *files = current->files;
 	const char *pRootName=NULL;
 	const char *pFileName=NULL;
+	int ret=0;
 
 	nCnt=files->fdt->max_fds;
 
@@ -1342,9 +1343,14 @@ void sec_debug_print_file_list(void)
 
 			printk(KERN_ERR "[%04d]%s%s\n",i,pRootName==NULL?"null":pRootName,
 							pFileName==NULL?"null":pFileName);
+			ret++;
 		}
 		rcu_read_unlock();
 	}
+	if(ret > nCnt - 50) 
+		return 1;
+	else
+		return 0;
 }
 
 void sec_debug_EMFILE_error_proc(void)
@@ -1359,8 +1365,9 @@ void sec_debug_EMFILE_error_proc(void)
 	if (!strcmp(current->group_leader->comm, "system_server")
 		||!strcmp(current->group_leader->comm, "mediaserver")
 		||!strcmp(current->group_leader->comm, "surfaceflinger")){
-		sec_debug_print_file_list();
-		panic("Too many open files");
+		if (sec_debug_print_file_list() == 1) {
+			panic("Too many open files");
+		}
 	}
 }
 #endif

@@ -161,6 +161,11 @@ fw-shipped-$(CONFIG_KEYBOARD_ABOV_TOUCH_18XX) += abov/abov_tk_1804_a9xpro.fw
 fw-shipped-$(CONFIG_KEYBOARD_TC300K)				+= coreriver/tc305k_a9x.fw
 endif
 
+ifdef CONFIG_SEC_C9LTE_PROJECT
+fw-shipped-$(CONFIG_KEYBOARD_ABOV_TOUCH_18XX) += abov/abov_tk_1804_a9xpro.fw
+fw-shipped-$(CONFIG_KEYBOARD_TC300K)                            += coreriver/tc305k_a9x.fw
+endif
+
 ifdef CONFIG_SEC_J7XLTE_PROJECT
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_MMS438)		+= tsp_melfas/mms438_j7x.fw
 fw-shipped-$(CONFIG_KEYBOARD_TC300K)				+= coreriver/tc305k_j7x.fw

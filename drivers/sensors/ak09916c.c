@@ -85,6 +85,7 @@ struct ak09916c_p {
 
 	atomic_t delay;
 	atomic_t enable;
+	atomic_t i2c_cancel;
 #if defined(CONFIG_SENSORS_SW_RESET)
 	int reset_state;
 #endif
@@ -257,6 +258,8 @@ static int ak09916c_read_mag_xyz(struct ak09916c_p *data,
 	int ret = 0, retries = 0;
 
 	mutex_lock(&data->lock);
+	if (atomic_read(&data->i2c_cancel) == 1)
+		goto exit;
 
 	ret = ak09916c_ecs_set_mode(data, AK09916C_MODE_SNG_MEASURE);
 	if (ret < 0) {
@@ -372,7 +375,7 @@ static void ak09916c_power_collapse(struct ak09916c_p *data, int enable)
 {
 	if (enable) {
 		pr_info("%s - enable\n", __func__);
-		if (atomic_read(&data->delay) == 20000000){
+		if (atomic_read(&data->delay) == 66666000 || atomic_read(&data->delay) == 20000000){
 			pr_info("[SENSOR]: %s - delay :%d\n", __func__, atomic_read(&data->delay));
 			pm_qos_update_request(&data->pm_qos_req, PM_QOS_DEFAULT_VALUE);
 		}
@@ -393,6 +396,8 @@ static void ak09916c_set_enable(struct ak09916c_p *data, int enable)
 		ak09916c_power_collapse(data, PC_ON);
 		if (pre_enable == 0) {
 			data->old_timestamp = 0LL;
+			atomic_set(&data->i2c_cancel, 0);
+			pr_info("[SENSOR]: %s - i2c_cancel: %d\n", __func__,atomic_read(&data->i2c_cancel));
 			ak09916c_ecs_set_mode(data, AK09916C_MODE_SNG_MEASURE);
 			schedule_delayed_work(&data->work,
 				nsecs_to_jiffies(atomic_read(&data->delay)));
@@ -400,6 +405,8 @@ static void ak09916c_set_enable(struct ak09916c_p *data, int enable)
 		}
 	} else {
 		if (pre_enable == 1) {
+			atomic_set(&data->i2c_cancel, 1);
+			pr_info("[SENSOR]: %s - i2c_cancel: %d\n", __func__,atomic_read(&data->i2c_cancel));
 			cancel_delayed_work_sync(&data->work);
 			ak09916c_ecs_set_mode(data, AK09916C_MODE_POWERDOWN);
 			atomic_set(&data->enable, 0);
@@ -990,6 +997,7 @@ static int ak09916c_probe(struct i2c_client *client,
 
 	atomic_set(&data->delay, AK09916C_DEFAULT_DELAY);
 	atomic_set(&data->enable, 0);
+	atomic_set(&data->i2c_cancel, 0);
 
 	data->asa[0] = 128;
 	data->asa[1] = 128;
@@ -1049,6 +1057,8 @@ static int ak09916c_suspend(struct device *dev)
 	struct ak09916c_p *data = dev_get_drvdata(dev);
 
 	if (atomic_read(&data->enable) == 1) {
+		pr_info("[SENSOR]: %s - i2c_cancel: %d\n", __func__,atomic_read(&data->i2c_cancel));
+		atomic_set(&data->i2c_cancel, 1);
 		cancel_delayed_work(&data->work);
 		ak09916c_ecs_set_mode(data, AK09916C_MODE_POWERDOWN);
 	}
@@ -1061,6 +1071,8 @@ static int ak09916c_resume(struct device *dev)
 	struct ak09916c_p *data = dev_get_drvdata(dev);
 
 	if (atomic_read(&data->enable) == 1) {
+		atomic_set(&data->i2c_cancel, 0);
+		pr_info("[SENSOR]: %s - i2c_cancel: %d\n", __func__,atomic_read(&data->i2c_cancel));
 		ak09916c_ecs_set_mode(data, AK09916C_MODE_SNG_MEASURE);
 		schedule_delayed_work(&data->work,
 			nsecs_to_jiffies(atomic_read(&data->delay)));

@@ -156,7 +156,14 @@ obj-$(CONFIG_VIRT_DRIVERS)	+= virt/
 obj-$(CONFIG_HYPERV)		+= hv/
 
 obj-$(CONFIG_PM_DEVFREQ)	+= devfreq/
-obj-$(CONFIG_BATTERY_SAMSUNG)	+= battery/
+
+
+ifeq ($(CONFIG_BATTERY_SAMSUNG_V2_FOLDER), y)
+	obj-$(CONFIG_BATTERY_SAMSUNG)	+= battery_v2/
+else
+	obj-$(CONFIG_BATTERY_SAMSUNG)	+= battery/
+endif
+
 obj-$(CONFIG_EXTCON)		+= extcon/
 obj-$(CONFIG_MEMORY)		+= memory/
 obj-$(CONFIG_IIO)		+= iio/
@@ -165,8 +172,8 @@ obj-$(CONFIG_IPACK_BUS)		+= ipack/
 obj-$(CONFIG_NTB)		+= ntb/
 obj-$(CONFIG_ANDROID)		+= android/
 
-#MobiCore
-obj-$(CONFIG_MOBICORE_SUPPORT)  += gud/
+# <t-base drivers
+obj-$(CONFIG_TRUSTONIC_TEE)	+= gud/
 
 obj-$(CONFIG_CORESIGHT)		+= coresight/
 obj-$(CONFIG_ESOC)		+= esoc/

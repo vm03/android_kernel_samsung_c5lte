@@ -64,9 +64,6 @@ enum APP {
 	BROWSER_APP,
 	eBOOK_APP,
 	EMAIL_APP,
-	GAME_LOW_APP,
-	GAME_MID_APP,
-	GAME_HIGH_APP,
 	TDMB_APP,	/* is linked to APP_ID_TDMB */
 	MAX_APP_MODE,
 };
@@ -253,6 +250,8 @@ struct mdnie_lite_tune_data {
 	int dsi0_rgb_sensor_mdnie_1_size;
 	int dsi0_rgb_sensor_mdnie_2_size;
 	int dsi0_rgb_sensor_mdnie_index;
+	char **dsi0_adjust_ldu_table;
+	int dsi0_max_adjust_ldu;
 
 /*******************************************
 *					DSI1 DATA
@@ -349,6 +348,8 @@ struct mdnie_lite_tune_data {
 	int dsi1_rgb_sensor_mdnie_1_size;
 	int dsi1_rgb_sensor_mdnie_2_size;
 	int dsi1_rgb_sensor_mdnie_index;
+	char **dsi1_adjust_ldu_table;
+	int dsi1_max_adjust_ldu;
 };
 
 /* COMMON FUNCTION*/

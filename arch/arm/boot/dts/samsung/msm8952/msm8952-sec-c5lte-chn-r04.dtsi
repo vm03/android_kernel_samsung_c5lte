@@ -697,6 +697,13 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart_console_sleep>;
 };
+
+&spmi_bus {
+	//remove all unnecessary redundant PMI operation(qcom,pmi8950@2, qcom,pmi8950@3) by QC guide, case 02645142 case 02917190
+	/delete-node/ qcom,pmi8950@2;
+	/delete-node/ qcom,pmi8950@3;
+};
+
 /*
 /{
 	mtp_batterydata: qcom,battery-data {

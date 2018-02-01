@@ -206,8 +206,12 @@ static int muic_dpreset_afc(void)
 		msleep(60);
 		afcops->afc_ctrl_reg(gpmuic->regmapdesc, AFCCTRL_DIS_AFC, 0);
 
-		gpmuic->attached_dev = ATTACHED_DEV_AFC_CHARGER_5V_MUIC;
-		muic_notifier_attach_attached_dev(ATTACHED_DEV_AFC_CHARGER_5V_MUIC);
+		if (gpmuic->attached_dev != ATTACHED_DEV_NONE_MUIC) {
+			gpmuic->attached_dev = ATTACHED_DEV_AFC_CHARGER_5V_MUIC;
+			muic_notifier_attach_attached_dev(ATTACHED_DEV_AFC_CHARGER_5V_MUIC);
+		} else {
+			pr_info("%s:Seems TA is removed.\n", __func__);
+		}
 	}
 
 	return 0;

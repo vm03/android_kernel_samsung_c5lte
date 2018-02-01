@@ -65,9 +65,11 @@
 #include <linux/qcom/sec_debug.h>
 #endif
 
+// [ SEC_SELINUX_PORTING_QUALCOMM
 #ifdef CONFIG_PROC_AVC
 #include <linux/proc_avc.h>
 #endif
+// ] SEC_SELINUX_PORTING_QUALCOMM
 
 unsigned int processor_id;
 EXPORT_SYMBOL(processor_id);
@@ -473,9 +475,12 @@ static int __init arm64_device_init(void)
 #ifdef CONFIG_SEC_DEBUG
 	sec_debug_init();
 #endif
+// [ SEC_SELINUX_PORTING_QUALCOMM
 #ifdef CONFIG_PROC_AVC
 	sec_avc_log_init();
 #endif
+// ] SEC_SELINUX_PORTING_QUALCOMM
+
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	return 0;
 }

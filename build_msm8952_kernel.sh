@@ -11,6 +11,9 @@ elif [ "$BUILD_COMMAND" == "a7xlte_chn" ]; then
 elif [ "$BUILD_COMMAND" == "j7xlte_chn" ]; then
         PRODUCT_NAME=j7xltectc
         SIGN_MODEL=
+elif [ "$BUILD_COMMAND" == "c5lte_chn" ]; then
+        PRODUCT_NAME=c5ltechn
+        SIGN_MODEL=SM-C5000_CHN_CHC_ROOT0
 elif [ "$BUILD_COMMAND" == "on5xlte_chn" ]; then
         PRODUCT_NAME=on5xltechn
         SIGN_MODEL=
@@ -293,6 +296,7 @@ SECFUNC_PRINT_HELP()
 	echo "	for 8952 LTE_EUR_OPEN use lte_eur"
 	echo "  for 8952 A7XLTE_CHN_CTC use a7xlte_chn"
 	echo "  for 8952 J7XLTE_CHN_CTC use j7xlte_chn"
+	echo "  for 8952 C5PLTE_CHN_OPEN use c5lte_chn"
 	echo "  \$2 : "
 	echo "	-B or Nothing  (-B : Secure Binary)"
 	echo "  \$3 : "

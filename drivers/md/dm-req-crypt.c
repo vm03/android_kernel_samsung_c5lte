@@ -175,6 +175,31 @@ static void req_crypt_split_io_complete
 		(struct req_crypt_result *res, int err);
 
 #ifdef CONFIG_CRYPTO_FDE_KEY_UPDATE
+#ifndef CONFIG_CRYPTO_FDE_KEY_UPDATE_ASCII
+static int req_crypt_decode_key(uint8_t *key, uint8_t *hex, unsigned int size)
+{
+	char buffer[3];
+	unsigned int i;
+
+	buffer[2] = '\0';
+
+	for (i = 0; i < size; i++) {
+		buffer[0] = *hex++;
+		buffer[1] = *hex++;
+
+		if (kstrtou8(buffer, 16, &key[i]))
+			return -EINVAL;
+	}
+
+	if (*hex != '\0') {
+		DMERR("%s: Error\n", __func__);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+#endif
+
 static int req_crypt_ice_set_key(uint32_t index, uint8_t *key, uint8_t *salt)
 {
 	struct scm_desc desc = {0};
@@ -197,9 +222,19 @@ static int req_crypt_ice_set_key(uint32_t index, uint8_t *key, uint8_t *salt)
 
 	memset(tzbuf_key, 0, tzbuflen_key);
 	memset(tzbuf_salt, 0, tzbuflen_salt);
-
+#ifdef CONFIG_CRYPTO_FDE_KEY_UPDATE_ASCII
 	memcpy(reset_ice_key, key, tzbuflen_key);
 	memcpy(reset_ice_salt, salt, tzbuflen_salt);
+#else
+	if (req_crypt_decode_key((uint8_t*)reset_ice_key, key, ICE_KEY_SIZE) < 0) {
+		DMERR("%s: Error: reset_ice_key\n", __func__);
+		return -EINVAL;
+	}
+	if (req_crypt_decode_key((uint8_t*)reset_ice_salt, salt, ICE_SALT_SIZE) < 0) {
+		DMERR("%s: Error: reset_ice_salt\n", __func__);
+		return -EINVAL;
+	}
+#endif
 
 	dmac_flush_range(tzbuf_key, tzbuf_key + tzbuflen_key);
 	dmac_flush_range(tzbuf_salt, tzbuf_salt + tzbuflen_salt);
@@ -1440,6 +1475,11 @@ static int req_crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	       __func__, argv[3]);
 
 ctr_exit:
+#ifdef CONFIG_CRYPTO_FDE_KEY_UPDATE
+	memset(reset_ice_key, 0, ICE_SALT_SIZE);
+	memset(reset_ice_salt, 0, ICE_SALT_SIZE);
+#endif
+
 	if (err)
 		req_crypt_dtr(ti);
 

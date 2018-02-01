@@ -23,7 +23,7 @@
 		qcom,mdss-dsi-panel-height = <1280>;
 		qcom,mdss-dsi-bpp = <24>;
 		qcom,mdss-dsi-panel-destination = "display_1";
-		qcom,mdss-dsi-panel-timings = [B6 2A 1C 00 56 58 22 2E 23 03 04 00];
+		qcom,mdss-dsi-panel-timings = [A2 24 18 00 4E 52 1C 28 1F 03 04 00];
 		//qcom,mdss-dsi-panel-timings-8996 = ;
 		qcom,mdss-dsi-on-command = [
 					29 01 00 00 00 00 04 B9 83 10 0A
@@ -78,8 +78,8 @@
 		//qcom,mdss-dsi-fbc-rgb-threshold = ;
 		//qcom,mdss-dsi-fbc-lossy-mode-idx = ;
 		//qcom,mdss-dsi-fbc-max-pred-err = ;
-		qcom,mdss-dsi-h-back-porch = <118>;
-		qcom,mdss-dsi-h-front-porch = <254>;
+		qcom,mdss-dsi-h-back-porch = <25>;
+		qcom,mdss-dsi-h-front-porch = <210>;
 		qcom,mdss-dsi-h-pulse-width = <25>;
 		qcom,mdss-dsi-h-sync-skew = <0>;
 		/* 
@@ -137,7 +137,7 @@
 		qcom,mdss-dsi-mdp-trigger = "none";
 		qcom,mdss-dsi-dma-trigger = "trigger_sw";
 		qcom,mdss-dsi-panel-framerate = <60>;
-		qcom,mdss-dsi-panel-clockrate = <682000000>;
+		qcom,mdss-dsi-panel-clockrate = <600000000>;
 		//qcom,mdss-mdp-transfer-time-us = ;
 		qcom,mdss-dsi-on-command-state = "dsi_hs_mode";
 		qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
@@ -211,7 +211,7 @@
  *
  * ************************************************************************************************************************************
  */
- 		samsung,panel-vendor = "BOE";
+ 		samsung,panel-vendor = "HIMAX";
  		samsung,tft-common-support;
 
 		samsung,level1_key_enable_tx_cmds_revA = [

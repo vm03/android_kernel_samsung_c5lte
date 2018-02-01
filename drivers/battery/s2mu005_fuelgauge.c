@@ -311,9 +311,9 @@ static void s2mu005_reset_fg(struct s2mu005_fuelgauge_data *fuelgauge)
 	if(fuelgauge->revision >= 2) {
 		s2mu005_read_reg_byte(fuelgauge->i2c, 0x45, &temp);
 		temp &= 0xF0;
-		temp |= 0x07;
+		temp |= 0x08;
 		s2mu005_write_reg_byte(fuelgauge->i2c, 0x45, temp);
-		s2mu005_write_reg_byte(fuelgauge->i2c, 0x44, 0x33);
+		s2mu005_write_reg_byte(fuelgauge->i2c, 0x44, 0x00);
 	} else {
 		s2mu005_read_reg_byte(fuelgauge->i2c, 0x45, &temp);
 		temp &= 0xF0;
@@ -487,6 +487,7 @@ static int s2mu005_get_temperature(struct s2mu005_fuelgauge_data *fuelgauge)
 	mutex_lock(&fuelgauge->fg_lock);
 
 	s2mu005_write_reg_byte(fuelgauge->i2c, S2MU005_REG_MONOUT_SEL, 0x10);
+	msleep(10);
 	if (s2mu005_read_reg(fuelgauge->i2c, S2MU005_REG_MONOUT, data) < 0)
 		goto err;
 	pr_info("%s temp data = 0x%x 0x%x\n", __func__, data[0], data[1]);

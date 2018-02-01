@@ -1806,6 +1806,13 @@ static ssize_t cmd_store(struct device *dev, struct device_attribute *attr,
 	struct synaptics_rmi4_data *rmi4_data = dev_get_drvdata(dev);
 	struct factory_data *data = rmi4_data->f54->factory_data;
 
+	if (strlen(buf) >= CMD_STR_LEN) {		
+		input_err(true, &rmi4_data->i2c_client->dev,
+				"%s: cmd length is over (%s,%d)!!\n",
+				__func__, buf, (int)strlen(buf));
+		return -EINVAL;
+	}
+
 	if (data->cmd_is_running == true) {
 		input_err(true, &rmi4_data->i2c_client->dev, "%s: Still servicing previous command. Skip cmd :%s\n",
 			 __func__, buf);
@@ -1878,7 +1885,7 @@ static ssize_t cmd_store(struct device *dev, struct device_attribute *attr,
 				start = pos + 1;
 			}
 			pos++;
-		} while (pos - buf <= length);
+		} while ((pos - buf <= length) && (param_cnt < CMD_PARAM_NUM));
 	}
 
 	input_info(true, &rmi4_data->i2c_client->dev, "%s: Command = %s\n",
@@ -2168,6 +2175,12 @@ static bool synaptics_skip_firmware_update_v7(struct synaptics_rmi4_data *rmi4_d
 */
 	if (rmi4_data->flash_prog_mode) {
 		input_err(true, &rmi4_data->i2c_client->dev, "%s: Force firmware update : Flash prog bit is setted fw\n",
+			__func__);
+		goto out;
+	}
+
+	if (rmi4_data->fw_version_of_ic == 0xFF) {
+		input_info(true, &rmi4_data->i2c_client->dev, "%s: fw update because TEST FW.\n",
 			__func__);
 		goto out;
 	}

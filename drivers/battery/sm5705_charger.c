@@ -362,6 +362,7 @@ static int sm5705_CHG_enable_AICL(struct sm5705_charger_data *charger, bool enab
 		pr_err("fail to update REG:SM5705_REG_CHGCNTL7 in AICLEN[5]\n");
 		return ret;
 	}
+	pr_info("%s(%s)\n",__func__,(enable?"set":"clear"));
 
 	return 0;
 }
@@ -959,7 +960,6 @@ static int sm5705_chg_set_property(struct power_supply *psy,
 {
 	struct sm5705_charger_data *charger =
 		container_of(psy, struct sm5705_charger_data, psy_chg);
-	int buck_state = true;
 #if defined(CONFIG_MULTI_CHARGING)
 	int prev_cable_type;
 	union power_supply_propval value;
@@ -985,7 +985,7 @@ static int sm5705_chg_set_property(struct power_supply *psy,
 			sm5705_charger_oper_push_event(SM5705_CHARGER_OP_EVENT_PWR_SHAR, value.intval);
 		} else if (charger->cable_type == POWER_SUPPLY_TYPE_OTG) {
 			charger->is_charging = false;
-#if defined(CONFIG_SM5705_SUPPORT_GAMEPAD)
+#if defined(CONFIG_MUIC_SUPPORT_GAMEPAD)
 			if (prev_cable_type == POWER_SUPPLY_TYPE_MDOCK_TA) 
 				sm5705_charger_oper_push_event(SM5705_CHARGER_OP_EVENT_VBUS, 0);
 #endif
@@ -1023,6 +1023,10 @@ static int sm5705_chg_set_property(struct power_supply *psy,
 #else
 		psy_chg_set_cable_online(charger, val->intval);
 #endif
+		if (sec_bat_get_slate_mode() == ENABLE)
+			sm5705_charger_oper_push_event(SM5705_CHARGER_OP_EVENT_SUSPEND_MODE, true);
+		else
+			sm5705_charger_oper_push_event(SM5705_CHARGER_OP_EVENT_SUSPEND_MODE, false);
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		pr_info("POWER_SUPPLY_PROP_CURRENT_MAX - current=%d\n", val->intval);
@@ -1047,6 +1051,10 @@ static int sm5705_chg_set_property(struct power_supply *psy,
 		pr_info("POWER_SUPPLY_PROP_CURRENT_NOW - current=%d\n", val->intval);
 		sm5705_set_charge_current(charger, val->intval);
 		sm5705_set_input_current(charger, val->intval);
+		if (sec_bat_get_slate_mode() == ENABLE)
+			sm5705_charger_oper_push_event(SM5705_CHARGER_OP_EVENT_SUSPEND_MODE, true);
+		else
+			sm5705_charger_oper_push_event(SM5705_CHARGER_OP_EVENT_SUSPEND_MODE, false);
 		break;
 #endif
 #if defined(CONFIG_AFC_CHARGER_MODE)
@@ -1118,7 +1126,6 @@ static int sm5705_chg_set_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
 		switch (val->intval) {
 		case SEC_BAT_CHG_MODE_BUCK_OFF:
-			buck_state = false;
 		case SEC_BAT_CHG_MODE_CHARGING_OFF:
 			charger->is_charging = false;
 			break;
@@ -2101,7 +2108,6 @@ static sec_charger_platform_data_t *_get_sm5705_charger_platform_data
 	}
 #else
 	struct sm5705_platform_data *sm5705_pdata = dev_get_platdata(sm5705->dev);
-	struct sm5705_dev *sm5705 = dev_get_drvdata(pdev->dev.parent);
 	sec_charger_platform_data_t *pdata;
 
 	pdata = sm5705_pdata->charger_data;
@@ -2229,7 +2235,6 @@ static void sm5705_charger_initialize(struct sm5705_charger_data *charger)
 static int sm5705_charger_probe(struct platform_device *pdev)
 {
 	struct sm5705_dev *sm5705 = dev_get_drvdata(pdev->dev.parent);
-	struct sm5705_platform_data *pdata = dev_get_platdata(sm5705->dev);
 	struct sm5705_charger_data *charger;
 	int ret = 0;
 
@@ -2329,9 +2334,6 @@ err_power_supply_register_chg:
 	power_supply_unregister(&charger->psy_chg);
 err_power_supply_register:
 	destroy_workqueue(charger->wqueue);
-#ifdef CONFIG_OF
-	kfree(pdata->charger_data);
-#endif
 	mutex_destroy(&charger->charger_mutex);
 err_free:
 	kfree(charger);

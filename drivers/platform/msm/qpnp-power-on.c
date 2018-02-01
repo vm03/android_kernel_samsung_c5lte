@@ -621,6 +621,16 @@ static int qpnp_pon_store_and_clear_warm_reset(struct qpnp_pon *pon)
 	return 0;
 }
 
+int get_pkey_press(void)
+{
+	struct qpnp_pon *pon = sys_reset_dev;
+	if (!pon)
+		return -EPROBE_DEFER;
+
+	return pon->powerkey_state;
+}
+EXPORT_SYMBOL(get_pkey_press);
+
 #if defined(CONFIG_QPNP_RESIN)
 int qpnp_resin_state(void)
 {
@@ -1098,6 +1108,18 @@ qpnp_pon_request_irqs(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
 				return rc;
 			}
 		}
+/*
+ * Samsung uses volume down key to enter into safe mode.
+ * Procedure is, press key from start of lk and held until home screen is
+ * launched.
+ * "CONFIG_VOLDOWN_QPNP_RESIN" flag is added to make sure this change applies
+ * for SS models which use QPNP RESIN_N as volume down key.
+ */
+#ifdef CONFIG_VOLDOWN_QPNP_RESIN
+		rc = qpnp_pon_input_dispatch(pon, PON_RESIN);
+        	if (rc)
+                	dev_err(&pon->spmi->dev, "No input event to send\n");
+#endif
 		break;
 	case PON_CBLPWR:
 		rc = devm_request_irq(&pon->spmi->dev, cfg->state_irq,

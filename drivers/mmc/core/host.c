@@ -53,6 +53,9 @@ static int mmc_host_runtime_suspend(struct device *dev)
 	if (!mmc_use_core_runtime_pm(host))
 		return 0;
 
+	if (mmc_bus_needs_resume(host))
+		goto out;
+
 	if (host->card && host->card->cmdq_init) {
 		BUG_ON(host->cmdq_ctx.active_reqs);
 
@@ -126,6 +129,9 @@ static int mmc_host_runtime_resume(struct device *dev)
 			BUG_ON(1);
 	}
 
+	if (mmc_bus_needs_resume(host))
+		goto out;
+
 	if (host->card && !ret && mmc_card_cmdq(host->card)) {
 		ret = mmc_cmdq_halt(host, false);
 		if (ret)
@@ -134,6 +140,7 @@ static int mmc_host_runtime_resume(struct device *dev)
 			mmc_card_clr_suspended(host->card);
 	}
 
+out:
 	trace_mmc_host_runtime_resume(mmc_hostname(host), ret,
 			ktime_to_us(ktime_sub(ktime_get(), start)));
 	return ret;
@@ -149,6 +156,9 @@ static int mmc_host_suspend(struct device *dev)
 
 	if (!mmc_use_core_pm(host))
 		return 0;
+
+	if (mmc_bus_needs_resume(host))
+		goto out;
 
 	spin_lock_irqsave(&host->clk_lock, flags);
 	/*
@@ -191,7 +201,8 @@ static int mmc_host_suspend(struct device *dev)
 			err = mmc_cmdq_halt(host, false);
 			if (err) {
 				mmc_release_host(host);
-				pr_err("%s: halt: failed: %d\n", __func__, err);
+				pr_err("%s: halt: failed: %d\n",
+						__func__, err);
 				goto out;
 			}
 		}
@@ -219,7 +230,6 @@ out:
 	else
 		host->dev_status = DEV_SUSPENDED;
 	spin_unlock_irqrestore(&host->clk_lock, flags);
-
 	return ret;
 }
 
@@ -233,6 +243,9 @@ static int mmc_host_resume(struct device *dev)
 
 	if (!pm_runtime_suspended(dev)) {
 		ret = mmc_resume_host(host);
+		if (!ret && mmc_bus_needs_resume(host))
+			goto out;
+
 		if (ret < 0) {
 			pr_err("%s: %s: failed: ret: %d\n", mmc_hostname(host),
 			       __func__, ret);
@@ -247,6 +260,7 @@ static int mmc_host_resume(struct device *dev)
 	}
 	host->dev_status = DEV_RESUMED;
 
+out:
 	return ret;
 }
 #endif
@@ -710,6 +724,8 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	host->max_req_size = PAGE_CACHE_SIZE;
 	host->max_blk_size = 512;
 	host->max_blk_count = PAGE_CACHE_SIZE / 512;
+
+	host->card_detect_cnt = 0;
 
 	return host;
 

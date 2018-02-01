@@ -209,6 +209,7 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_CYCLE_COUNT_ID,
 	POWER_SUPPLY_PROP_SAFETY_TIMER_EXPIRED,
 	POWER_SUPPLY_PROP_RESTRICTED_CHARGING,
+	POWER_SUPPLY_PROP_ALLOW_HVDCP3,
 	/* Local extensions of type int64_t */
 	POWER_SUPPLY_PROP_CHARGE_COUNTER_EXT,
 	/* Properties of type `const char *' */
@@ -217,6 +218,9 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 	POWER_SUPPLY_PROP_AFC_CHARGER_MODE,
 	POWER_SUPPLY_PROP_BATTERY_TYPE,
+
+	POWER_SUPPLY_PROP_MAX,
+	POWER_SUPPLY_EXT_PROP_MAX = POWER_SUPPLY_PROP_MAX + 256,
 };
 
 enum power_supply_type {
@@ -259,6 +263,11 @@ enum power_supply_type {
 	POWER_SUPPLY_TYPE_WIRELESS_PACK_TA,		/* wireless charging pack with TA (36) */
 	POWER_SUPPLY_TYPE_WIRELESS_STAND,		/* wireless charging stand pad type (37) */
 	POWER_SUPPLY_TYPE_WIRELESS_HV_STAND,	/* fast wireless charging stand pad type (38) */
+	POWER_SUPPLY_TYPE_HV_MAINS_12V,				/* 38 */
+	POWER_SUPPLY_TYPE_PDIC,             		/* 39 */
+	POWER_SUPPLY_TYPE_HV_MAINS_CHG_LIMIT,		/* 40 */
+	POWER_SUPPLY_TYPE_HV_QC20,			/* 41 - ILIM 1.8A - CHG 3.0A */
+	POWER_SUPPLY_TYPE_HV_QC30,			/* 42 - ILIM 3.0A - CHG 3.5A (Step Charging 4.2A -> 3.0A) */
 	POWER_SUPPLY_TYPE_MAX,
 
 	POWER_SUPPLY_TYPE_HV_WIRELESS_ETX = 100,

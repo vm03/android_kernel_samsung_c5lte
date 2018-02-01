@@ -32,6 +32,12 @@ struct sec_param_data {
 #ifdef CONFIG_SKU_THEME
 	char param_skutheme_info[32];
 #endif
+#ifdef CONFIG_BARCODE_PAINTER
+	char param_barcode_info[1024];
+#else
+        char reserved4[1024];
+#endif
+
 	char edit_cmdline[128];
 	unsigned int afc_disable;
 };
@@ -68,6 +74,9 @@ enum sec_param_index {
 #endif
 #ifdef CONFIG_SKU_THEME
 	param_index_skutheme_info,
+#endif
+#ifdef CONFIG_BARCODE_PAINTER
+	param_index_barcode_info,
 #endif
 	param_index_edit_cmdline,
 	param_index_afc_disable,

@@ -27,6 +27,7 @@ int BATT_THM_MUX_SEL_NUM;
 int CHG_THM_MUX_SEL_NUM;
 int AP_THM_MUX_SEL_NUM;
 int WPC_THM_MUX_SEL_NUM;
+int SLAVE_CHG_THM_MUX_SEL_NUM;
 
 /*
 * int mux_sel : name of mux_sel
@@ -241,6 +242,7 @@ static void sec_mux_sel_get_info(void)
 	CHG_THM_MUX_SEL_NUM = 0;
 	AP_THM_MUX_SEL_NUM = 0;
 	WPC_THM_MUX_SEL_NUM = 0;
+	SLAVE_CHG_THM_MUX_SEL_NUM = 0;
 
 	pr_info("%s mux_sel_1_type = %d, mux_sel_2_type = %d \n", __func__, mux_sel->pdata->mux_sel_1_type, mux_sel->pdata->mux_sel_2_type);
 
@@ -258,6 +260,8 @@ static void sec_mux_sel_get_info(void)
 			BATT_THM_MUX_SEL_NUM = SEC_MUX_SEL_1;
 		if(mux_sel->pdata->mux_sel_1_type & CHG_THM_MUX_SEL)
 			CHG_THM_MUX_SEL_NUM = SEC_MUX_SEL_1;
+		if(mux_sel->pdata->mux_sel_1_type & SLAVE_CHG_THM_MUX_SEL)
+			SLAVE_CHG_THM_MUX_SEL_NUM = SEC_MUX_SEL_1;
 		if(mux_sel->pdata->mux_sel_1_type & AP_THM_MUX_SEL)
 			AP_THM_MUX_SEL_NUM = SEC_MUX_SEL_1;
 		if(mux_sel->pdata->mux_sel_1_type & WPC_THM_MUX_SEL)
@@ -278,6 +282,8 @@ static void sec_mux_sel_get_info(void)
 			BATT_THM_MUX_SEL_NUM = SEC_MUX_SEL_2;
 		if(mux_sel->pdata->mux_sel_2_type & CHG_THM_MUX_SEL)
 			CHG_THM_MUX_SEL_NUM = SEC_MUX_SEL_2;
+		if(mux_sel->pdata->mux_sel_2_type & SLAVE_CHG_THM_MUX_SEL)
+			SLAVE_CHG_THM_MUX_SEL_NUM = SEC_MUX_SEL_2;
 		if(mux_sel->pdata->mux_sel_2_type & AP_THM_MUX_SEL)
 			AP_THM_MUX_SEL_NUM = SEC_MUX_SEL_2;
 		if(mux_sel->pdata->mux_sel_2_type & WPC_THM_MUX_SEL)
@@ -298,20 +304,23 @@ static void sec_mux_sel_get_info(void)
 			BATT_THM_MUX_SEL_NUM = SEC_MUX_SEL_3;
 		if(mux_sel->pdata->mux_sel_3_type & CHG_THM_MUX_SEL)
 			CHG_THM_MUX_SEL_NUM = SEC_MUX_SEL_3;
+		if(mux_sel->pdata->mux_sel_3_type & SLAVE_CHG_THM_MUX_SEL)
+			SLAVE_CHG_THM_MUX_SEL_NUM = SEC_MUX_SEL_3;
 		if(mux_sel->pdata->mux_sel_3_type & AP_THM_MUX_SEL)
 			AP_THM_MUX_SEL_NUM = SEC_MUX_SEL_3;
 		if(mux_sel->pdata->mux_sel_3_type & WPC_THM_MUX_SEL)
 			WPC_THM_MUX_SEL_NUM = SEC_MUX_SEL_3;		
 	}
 	
-	pr_info("%s EAR SEL NUM = %d, BATT SEL NUM = %d, BATT SEL NUM = %d, CHG SEL NUM = %d, AP SEL NUM = %d, WPC SEL NUM = %d\n", 
+	pr_info("%s EAR SEL NUM = %d, BATT ID SEL NUM = %d, BATT SEL NUM = %d, CHG SEL NUM = %d, AP SEL NUM = %d, WPC SEL NUM = %d, SLAVE CHG SEL NUM = %d\n", 
 	__func__,
 	EAR_ADC_MUX_SEL_NUM, 
 	BATT_ID_MUX_SEL_NUM,
 	BATT_THM_MUX_SEL_NUM,
 	CHG_THM_MUX_SEL_NUM,
 	AP_THM_MUX_SEL_NUM,
-	WPC_THM_MUX_SEL_NUM);
+	WPC_THM_MUX_SEL_NUM,
+	SLAVE_CHG_THM_MUX_SEL_NUM);
 }
 
 static int sec_mux_sel_probe(struct platform_device *pdev)

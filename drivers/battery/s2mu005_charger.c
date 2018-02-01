@@ -446,9 +446,9 @@ static bool s2mu005_chg_init(struct s2mu005_charger_data *charger)
 
 	charger->fg_clock = temp;
 
-	s2mu005_read_reg(charger->client, 0x20, &temp); //topoff timer 90min
+	s2mu005_read_reg(charger->client, 0x20, &temp); //topoff timer disable
 	temp &= ~0x38;
-	temp |= 0x30;
+	temp |= 0x38;
 	s2mu005_write_reg(charger->client, 0x20, temp);
 	
 	/* float voltage */
@@ -524,9 +524,9 @@ static void s2mu005_charger_initialize(struct s2mu005_charger_data *charger)
 	temp &= ~0x04;
 	s2mu005_write_reg(charger->client, 0xA5, temp);
 
-	s2mu005_read_reg(charger->client, 0x20, &temp); //topoff timer 90min
+	s2mu005_read_reg(charger->client, 0x20, &temp); //topoff timer disable
 	temp &= ~0x38;
-	temp |= 0x30;
+	temp |= 0x38;
 	s2mu005_write_reg(charger->client, 0x20, temp);
 
 #if ENABLE_MIVR

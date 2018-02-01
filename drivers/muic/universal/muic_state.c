@@ -71,9 +71,23 @@ static void muic_handle_attach(muic_data_t *pmuic,
 {
 	int ret = 0;
 	bool noti_f = true;
+#if defined(CONFIG_MUIC_UNIVERSAL_SM5703)
+	struct vendor_ops *pvendor = pmuic->regmapdesc->vendorops;
+#endif
 
 	pr_info("%s:%s attached_dev:%d new_dev:%d adc:0x%02x, vbvolt:%02x\n",
 		MUIC_DEV_NAME, __func__, pmuic->attached_dev, new_dev, adc, vbvolt);
+
+#if defined(CONFIG_MUIC_UNIVERSAL_SM5703)
+	/* W/A of sm5703 lanhub issue */
+	if ((new_dev == ATTACHED_DEV_OTG_MUIC) && (vbvolt > 0)) {
+		if (pvendor && pvendor->reset_vbus_path) {
+			pr_info("%s:%s reset vbus path\n", MUIC_DEV_NAME, __func__);
+			pvendor->reset_vbus_path(pmuic->regmapdesc);
+		} else
+			pr_info("%s: No Vendor API ready.\n", __func__);
+	}
+#endif
 
 	if((new_dev == pmuic->attached_dev) &&
 		(new_dev != ATTACHED_DEV_JIG_UART_OFF_MUIC) && 

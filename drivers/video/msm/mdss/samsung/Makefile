@@ -9,6 +9,9 @@ obj-$(CONFIG_SAMSUNG_DEBUG_DISPLAY) += dlog.o
 # panel directory make file
 #
 
+# TO SUPPORT PBA BOOINT
+obj-y += PBA_BOOTING_HD/
+
 # Lucky panel
 obj-$(CONFIG_PANEL_S6E3HA2_AMS509ES01_WQHD) += S6E3HA2_AMS509ES01/
 

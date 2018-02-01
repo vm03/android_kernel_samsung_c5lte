@@ -56,9 +56,6 @@ char mdnie_app_name[][NAME_STRING_MAX] = {
 	"BROWSER_APP",
 	"eBOOK_APP",
 	"EMAIL_APP",
-	"GAME_LOW_APP",
-	"GAME_MID_APP",
-	"GAME_HIGH_APP",
 	"TDMB_APP",
 };
 
@@ -166,8 +163,7 @@ int update_dsi_tcon_mdnie_register(struct samsung_display_driver_data *vdd)
 		/*
 		*	Checking HBM mode first.
 		*/
-		if (mdnie_tune_state->vdd->auto_brightness >= HBM_MODE && 
-			(mdnie_tune_state->vdd->bl_level == 255 || mdnie_tune_state->vdd->lux >= mdnie_tune_state->vdd->enter_hbm_lux))
+		if (mdnie_tune_state->vdd->lux >= mdnie_tune_state->vdd->enter_hbm_lux)
 			mdnie_tune_state->hbm_enable = true;
 		else
 			mdnie_tune_state->hbm_enable = false;
@@ -647,7 +643,7 @@ static ssize_t sensorRGB_store(struct device *dev,
 
 					data_dsi0 = mdnie_data.mdnie_tune_value_dsi0[mdnie_tune_state->mdnie_app][mdnie_tune_state->mdnie_mode][mdnie_tune_state->outdoor];
 
-					if (tune_data_dsi0 && data_dsi0) {
+					if (data_dsi0) {
 						memcpy(mdnie_data.DSI0_RGB_SENSOR_MDNIE_1, data_dsi0[mdnie_data.mdnie_step_index[MDNIE_STEP1]].payload, mdnie_data.dsi0_rgb_sensor_mdnie_1_size);
 						memcpy(mdnie_data.DSI0_RGB_SENSOR_MDNIE_2, data_dsi0[mdnie_data.mdnie_step_index[MDNIE_STEP2]].payload, mdnie_data.dsi0_rgb_sensor_mdnie_2_size);
 
@@ -655,7 +651,7 @@ static ssize_t sensorRGB_store(struct device *dev,
 							mdnie_data.DSI0_RGB_SENSOR_MDNIE_1[mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_RED_OFFSET]] = white_red;
 							mdnie_data.DSI0_RGB_SENSOR_MDNIE_1[mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_GREEN_OFFSET]] = white_green;
 							mdnie_data.DSI0_RGB_SENSOR_MDNIE_1[mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_BLUE_OFFSET]] = white_blue;
-						
+
 						} else if(mdnie_data.dsi0_rgb_sensor_mdnie_index == 2) {
 							mdnie_data.DSI0_RGB_SENSOR_MDNIE_2[mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_RED_OFFSET]] = white_red;
 							mdnie_data.DSI0_RGB_SENSOR_MDNIE_2[mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_GREEN_OFFSET]] = white_green;
@@ -667,7 +663,7 @@ static ssize_t sensorRGB_store(struct device *dev,
 
 					data_dsi1 = mdnie_data.mdnie_tune_value_dsi1[mdnie_tune_state->mdnie_app][mdnie_tune_state->mdnie_mode][mdnie_tune_state->outdoor];
 
-					if (tune_data_dsi1 && data_dsi1) {
+					if (data_dsi1) {
 						memcpy(mdnie_data.DSI1_RGB_SENSOR_MDNIE_1, data_dsi1[mdnie_data.mdnie_step_index[MDNIE_STEP1]].payload, mdnie_data.dsi1_rgb_sensor_mdnie_1_size);
 						memcpy(mdnie_data.DSI1_RGB_SENSOR_MDNIE_2, data_dsi1[mdnie_data.mdnie_step_index[MDNIE_STEP2]].payload, mdnie_data.dsi1_rgb_sensor_mdnie_2_size);
 
@@ -675,7 +671,7 @@ static ssize_t sensorRGB_store(struct device *dev,
 							mdnie_data.DSI1_RGB_SENSOR_MDNIE_1[mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_RED_OFFSET]] = white_red;
 							mdnie_data.DSI1_RGB_SENSOR_MDNIE_1[mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_GREEN_OFFSET]] = white_green;
 							mdnie_data.DSI1_RGB_SENSOR_MDNIE_1[mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_BLUE_OFFSET]] = white_blue;
-						
+
 						} else if(mdnie_data.dsi1_rgb_sensor_mdnie_index == 2) {
 							mdnie_data.DSI1_RGB_SENSOR_MDNIE_2[mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_RED_OFFSET]] = white_red;
 							mdnie_data.DSI1_RGB_SENSOR_MDNIE_2[mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_GREEN_OFFSET]] = white_green;
@@ -729,6 +725,72 @@ static ssize_t cabc_store(struct device *dev,
 
 	config_cabc(value);
 
+	return size;
+}
+
+static ssize_t mdnie_ldu_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int buffer_pos = 0;
+	struct mdnie_lite_tun_type *mdnie_tune_state = NULL;
+
+	list_for_each_entry_reverse(mdnie_tune_state, &mdnie_list , used_list) {
+		buffer_pos += snprintf(buf, 256, "%d %d %d ", mdnie_tune_state->scr_white_red, mdnie_tune_state->scr_white_green, mdnie_tune_state->scr_white_blue);
+	}
+	return buffer_pos;
+}
+
+static ssize_t mdnie_ldu_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	int i, j, idx;
+	struct mdnie_lite_tun_type *mdnie_tune_state = NULL;
+	struct mdnie_lite_tun_type *real_mdnie_tune_state = NULL;
+	struct dsi_cmd_desc *ldu_tunning_data = NULL;
+	struct samsung_display_driver_data *vdd = NULL;
+
+	sscanf(buf, "%d", &idx);
+
+	list_for_each_entry_reverse(mdnie_tune_state, &mdnie_list , used_list) {
+		real_mdnie_tune_state = mdnie_tune_state;
+
+		if (!vdd)
+			vdd = mdnie_tune_state->vdd;
+
+		if (mdnie_tune_state->index == DSI_CTRL_0) {
+			if((idx >=0) && (idx < mdnie_data.dsi0_max_adjust_ldu)) {
+				for (i = 0; i < MAX_APP_MODE; i++) {
+					for (j = 0; j < MAX_MODE; j++) {
+						if ((mdnie_data.mdnie_tune_value_dsi0[i][j][0] != NULL) && (i != eBOOK_APP) && (j != READING_MODE)) {
+							if(mdnie_data.dsi0_adjust_ldu_table[j] != NULL) {
+								ldu_tunning_data = mdnie_data.mdnie_tune_value_dsi0[i][j][0];
+								ldu_tunning_data[mdnie_data.mdnie_step_index[MDNIE_STEP2]].payload[mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_RED_OFFSET]] = mdnie_data.dsi0_adjust_ldu_table[j][idx * 3 + 0];
+								ldu_tunning_data[mdnie_data.mdnie_step_index[MDNIE_STEP2]].payload[mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_GREEN_OFFSET]] = mdnie_data.dsi0_adjust_ldu_table[j][idx * 3 + 1];
+								ldu_tunning_data[mdnie_data.mdnie_step_index[MDNIE_STEP2]].payload[mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_BLUE_OFFSET]] = mdnie_data.dsi0_adjust_ldu_table[j][idx * 3 + 2];
+							}
+						}
+					}
+				}
+			}
+		} else {
+			if((idx >=0) && (idx < mdnie_data.dsi1_max_adjust_ldu)) {
+				for (i = 0; i < MAX_APP_MODE; i++) {
+					for (j = 0; j < MAX_MODE; j++) {
+						if ((mdnie_data.mdnie_tune_value_dsi1[i][j][0] != NULL) && (i != eBOOK_APP) && (j != READING_MODE)) {
+							if(mdnie_data.dsi1_adjust_ldu_table[j] != NULL) {
+								ldu_tunning_data = mdnie_data.mdnie_tune_value_dsi1[i][j][0];
+								ldu_tunning_data[mdnie_data.mdnie_step_index[MDNIE_STEP2]].payload[mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_RED_OFFSET]] = mdnie_data.dsi1_adjust_ldu_table[j][idx * 3 + 0];
+								ldu_tunning_data[mdnie_data.mdnie_step_index[MDNIE_STEP2]].payload[mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_GREEN_OFFSET]] = mdnie_data.dsi1_adjust_ldu_table[j][idx * 3 + 1];
+								ldu_tunning_data[mdnie_data.mdnie_step_index[MDNIE_STEP2]].payload[mdnie_data.address_scr_white[ADDRESS_SCR_WHITE_BLUE_OFFSET]] = mdnie_data.dsi1_adjust_ldu_table[j][idx * 3 + 2];
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	update_dsi_tcon_mdnie_register(vdd);
 	return size;
 }
 
@@ -788,6 +850,7 @@ static DEVICE_ATTR(outdoor, 0664, outdoor_show, outdoor_store);
 static DEVICE_ATTR(bypass, 0664, bypass_show, bypass_store);
 static DEVICE_ATTR(accessibility, 0664, accessibility_show, accessibility_store);
 static DEVICE_ATTR(sensorRGB, 0664, sensorRGB_show, sensorRGB_store);
+static DEVICE_ATTR(mdnie_ldu, 0664, mdnie_ldu_show, mdnie_ldu_store);
 static DEVICE_ATTR(cabc, 0664, cabc_show, cabc_store);
 static DEVICE_ATTR(hmt_color_temperature, 0664, hmt_color_temperature_show, hmt_color_temperature_store);
 
@@ -834,6 +897,11 @@ void create_tcon_mdnie_node(void)
 		(tune_mdnie_dev, &dev_attr_sensorRGB) < 0)
 		DPRINT("Failed to create device file(%s)!=n",
 			dev_attr_sensorRGB.attr.name);
+
+	if (device_create_file
+		(tune_mdnie_dev, &dev_attr_mdnie_ldu) < 0)
+		DPRINT("Failed to create device file(%s)!=n",
+			dev_attr_mdnie_ldu.attr.name);
 
 	/* hmt_color_temperature */
 	if (device_create_file

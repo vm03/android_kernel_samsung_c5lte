@@ -44,6 +44,8 @@
 #include <sound/compress_offload.h>
 #include <sound/compress_driver.h>
 
+#define U32_MAX ((u32)~0U)
+
 /* TODO:
  * - add substream support for multiple devices in case of
  *	SND_DYNAMIC_MINORS is not used

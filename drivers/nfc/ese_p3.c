@@ -133,53 +133,52 @@ static int p3_resume(void)
  */
 static long p3_spi_clk_max_rate(struct clk *clk, unsigned long rate)
 {
-        long lowest_available, nearest_low, step_size, cur;
-        long step_direction = -1;
-        long guess = rate;
-        int  max_steps = 10;
+	long lowest_available, nearest_low, step_size, cur;
+	long step_direction = -1;
+	long guess = rate;
+	int  max_steps = 10;
 
-        cur =  clk_round_rate(clk, rate);
-        if (cur == rate)
-                return rate;
+	cur =  clk_round_rate(clk, rate);
+	if (cur == rate)
+		return rate;
 
-        /* if we got here then: cur > rate */
-        lowest_available =  clk_round_rate(clk, 0);
-        if (lowest_available > rate)
-                return -EINVAL;
+	/* if we got here then: cur > rate */
+	lowest_available =  clk_round_rate(clk, 0);
+	if (lowest_available > rate)
+		return -EINVAL;
 
-        step_size = (rate - lowest_available) >> 1;
-        nearest_low = lowest_available;
+	step_size = (rate - lowest_available) >> 1;
+	nearest_low = lowest_available;
 
-        while (max_steps-- && step_size) {
-                guess += step_size * step_direction;
+	while (max_steps-- && step_size) {
+		guess += step_size * step_direction;
 
-                cur =  clk_round_rate(clk, guess);
+		cur =  clk_round_rate(clk, guess);
+		if ((cur < rate) && (cur > nearest_low))
+			nearest_low = cur;
 
-                if ((cur < rate) && (cur > nearest_low))
-                        nearest_low = cur;
-
-                /*
-                 * if we stepped too far, then start stepping in the other
-                 * direction with half the step size
-                 */
-                if (((cur > rate) && (step_direction > 0))
-                 || ((cur < rate) && (step_direction < 0))) {
-                        step_direction = -step_direction;
-                        step_size >>= 1;
-                 }
-        }
-        return nearest_low;
+		/*
+		 * if we stepped too far, then start stepping in the other
+		 * direction with half the step size
+		 */
+		if (((cur > rate) && (step_direction > 0))
+			|| ((cur < rate) && (step_direction < 0))) {
+			step_direction = -step_direction;
+			step_size >>= 1;
+		}
+	}
+	return nearest_low;
 }
 
 static void p3_spi_clock_set(struct p3_data *data, unsigned long speed)
 {
-        long rate;
+	long rate;
 	if (!strncmp(data->ap_vendor, "qualcomm", 8)) {
 		/* finds the nearest lower rate for a clk */
 		rate = p3_spi_clk_max_rate(data->ese_spi_sclk, speed);
 		if (rate < 0) {
 			P3_ERR_MSG("%s: no match found for requested clock frequency:%lu",
-					__func__, speed);
+				__func__, speed);
 			return;
 		}
 		speed = rate;
@@ -188,9 +187,8 @@ static void p3_spi_clock_set(struct p3_data *data, unsigned long speed)
 		speed =  speed * 2;
 	}
 
-        clk_set_rate(data->ese_spi_sclk, speed);
+	clk_set_rate(data->ese_spi_sclk, speed);
 }
-
 
 static int p3_clk_control(struct p3_data *data, bool onoff)
 {
@@ -233,6 +231,7 @@ static int p3_clk_setup(struct device *dev, struct p3_data *data)
 	}
 
 	return 0;
+
 err_sclk_get:
 	clk_put(data->ese_spi_pclk);
 err_pclk_get:
@@ -250,9 +249,9 @@ static int p3_power_onoff(struct p3_data *data, int onoff)
 #ifndef CONFIG_ESE_SECURE
 static int p3_xfer(struct p3_data *p3_device, struct p3_ioctl_transfer *tr)
 {
-        int    status = 0;
-        struct spi_message m;
-        struct spi_transfer t;
+	int    status = 0;
+	struct spi_message m;
+	struct spi_transfer t;
 	unsigned char tx_buffer[MAX_BUFFER_SIZE] = {0x0, };
 	unsigned char rx_buffer[MAX_BUFFER_SIZE] = {0x0, };
 
@@ -268,24 +267,22 @@ static int p3_xfer(struct p3_data *p3_device, struct p3_ioctl_transfer *tr)
 			tr->tx_buffer, tr->len) != 0)
 		return -EFAULT;
 
-        spi_message_init(&m);
-        memset(&t, 0, sizeof(t));
+	spi_message_init(&m);
+	memset(&t, 0, sizeof(t));
 
 	t.tx_buf = tx_buffer;
 	t.rx_buf = rx_buffer;
 	t.len = tr->len;
-
-        spi_message_add_tail(&t, &m);
+	spi_message_add_tail(&t, &m);
 
 	status = spi_sync(p3_device->spi, &m);
 
 	if (copy_to_user(tr->rx_buffer, rx_buffer, tr->len)) {
 		P3_ERR_MSG("%s : failed to copy to user space\n", __func__);
 		return -EFAULT;
-}
+	}
 
 	P3_DBG_MSG("%s p3_xfer,length=%d\n", __func__, tr->len);
-
 	return status;
 }
 
@@ -296,18 +293,17 @@ static int p3_rw_spi_message(struct p3_data *p3_device, unsigned long arg)
 
 	if (copy_from_user(&dup, (void *)arg,
 			   sizeof(struct p3_ioctl_transfer)) != 0) {
-			P3_ERR_MSG("%s copy_from_user fail!\n", __func__);
+		P3_ERR_MSG("%s copy_from_user fail!\n", __func__);
 		return -EFAULT;
 	} else {
 		err = p3_xfer(p3_device, &dup);
 		if (err != 0) {
 			P3_ERR_MSG("%s xfer failed!\n", __func__);
 			return err;
-        }
-}
-
-	return 0;
+		}
 	}
+	return 0;
+}
 
 #ifdef CONFIG_COMPAT
 static int p3_rw_spi_message_32(struct p3_data *p3_device, unsigned long arg)
@@ -317,9 +313,9 @@ static int p3_rw_spi_message_32(struct p3_data *p3_device, unsigned long arg)
 	int err = 0;
 
 	if (__copy_from_user(&p3transfr_32, (void __user *)arg,
-			sizeof(struct spip3_ioc_transfer_32))) {
-			P3_ERR_MSG("%s, failed to copy from user\n", __func__);
-			return -EFAULT;
+		sizeof(struct spip3_ioc_transfer_32))) {
+		P3_ERR_MSG("%s, failed to copy from user\n", __func__);
+		return -EFAULT;
 	}
 
 	dup.tx_buffer = (unsigned char *)(unsigned long)(p3transfr_32.tx_buffer);
@@ -331,8 +327,8 @@ static int p3_rw_spi_message_32(struct p3_data *p3_device, unsigned long arg)
 		P3_ERR_MSG("%s xfer failed!\n", __func__);
 		return err;
 	}
-	P3_DBG_MSG("%s len:%u\n", __func__, dup.len);
 
+	P3_DBG_MSG("%s len:%u\n", __func__, dup.len);
 	return 0;
 }
 #endif
@@ -435,15 +431,13 @@ static long spip3_ioctl(struct file *filp, unsigned int cmd,
 		case P3_RW_SPI_DATA :
 			ret = p3_rw_spi_message(data, arg);
 			if (ret < 0)
-				P3_ERR_MSG("%s P3_RW_SPI_DATA failed [%d].\n",
-					__func__, ret);
+				P3_ERR_MSG("%s P3_RW_SPI_DATA failed [%d].\n", __func__, ret);
 			break;
 #ifdef CONFIG_COMPAT
 		case P3_RW_SPI_DATA_32:
 			ret = p3_rw_spi_message_32(data, arg);
 			if (ret < 0)
-				P3_ERR_MSG("%s P3_RW_SPI_DATA_32 failed [%d].\n",
-					__func__, ret);
+				P3_ERR_MSG("%s P3_RW_SPI_DATA_32 failed [%d].\n", __func__,ret);
 			break;
 #endif
 #endif
@@ -632,8 +626,7 @@ static int spip3_probe(struct spi_device *spi)
 	init_waitqueue_head(&data->read_wq);
 	mutex_init(&data->buffer_mutex);
 #ifdef FEATURE_ESE_WAKELOCK
-	wake_lock_init(&data->ese_lock,
-		WAKE_LOCK_SUSPEND, "ese_wake_lock");
+	wake_lock_init(&data->ese_lock, WAKE_LOCK_SUSPEND, "ese_wake_lock");
 #endif
 
 	data->device_opened = false;

@@ -69,6 +69,7 @@ enum sec_mux_sel_type {
 	SEC_MUX_SEL_CHG_THM,
 	SEC_MUX_SEL_AP_THM,
 	SEC_MUX_SEL_WPC_THM,
+	SEC_MUX_SEL_SLAVE_CHG_THM, //6
 };
 
 #define EAR_ADC_MUX_SEL 	1
@@ -77,6 +78,7 @@ enum sec_mux_sel_type {
 #define CHG_THM_MUX_SEL		8
 #define AP_THM_MUX_SEL		16
 #define WPC_THM_MUX_SEL		32
+#define SLAVE_CHG_THM_MUX_SEL	64
 
 void sec_mpp_mux_control(int mux_sel, int adc_type, int mutex_on);
 
@@ -86,5 +88,6 @@ extern int BATT_THM_MUX_SEL_NUM;
 extern int CHG_THM_MUX_SEL_NUM;
 extern int AP_THM_MUX_SEL_NUM;
 extern int WPC_THM_MUX_SEL_NUM;
+extern int SLAVE_CHG_THM_MUX_SEL_NUM;
 #endif
 #endif

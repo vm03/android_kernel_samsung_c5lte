@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -62,6 +62,10 @@ int wcd9xxx_init_slimslave(struct wcd9xxx *wcd9xxx, u8 wcd9xxx_pgd_la,
 		goto err;
 	}
 
+	if (!rx_num || rx_num > wcd9xxx->num_rx_port) {
+		pr_err("%s: invalid rx num %d\n", __func__, rx_num);
+		return -EINVAL;
+	}
 	if (wcd9xxx->rx_chs) {
 		wcd9xxx->num_rx_port = rx_num;
 		for (i = 0; i < rx_num; i++) {
@@ -84,6 +88,10 @@ int wcd9xxx_init_slimslave(struct wcd9xxx *wcd9xxx, u8 wcd9xxx_pgd_la,
 			wcd9xxx->num_rx_port);
 	}
 
+	if (!tx_num || tx_num > wcd9xxx->num_tx_port) {
+		pr_err("%s: invalid tx num %d\n", __func__, tx_num);
+		return -EINVAL;
+	}
 	if (wcd9xxx->tx_chs) {
 		wcd9xxx->num_tx_port = tx_num;
 		for (i = 0; i < tx_num; i++) {
@@ -244,7 +252,7 @@ int wcd9xxx_cfg_slim_sch_rx(struct wcd9xxx *wcd9xxx,
 
 	list_for_each_entry(rx, wcd9xxx_ch_list, list) {
 		codec_port = rx->port;
-		pr_debug("%s: codec_port %d rx 0x%p, payload %d\n"
+		pr_debug("%s: codec_port %d rx 0x%pK, payload %d\n"
 			 "sh_ch.rx_port_ch_reg_base0 0x%x\n"
 			 "sh_ch.port_rx_cfg_reg_base 0x%x\n",
 			 __func__, codec_port, rx, payload,
@@ -352,7 +360,7 @@ int wcd9xxx_cfg_slim_sch_tx(struct wcd9xxx *wcd9xxx,
 		 rate, bit_width);
 	list_for_each_entry(tx, wcd9xxx_ch_list, list) {
 		codec_port = tx->port;
-		pr_debug("%s: codec_port %d tx 0x%p, payload 0x%x\n",
+		pr_debug("%s: codec_port %d tx 0x%pK, payload 0x%x\n",
 			 __func__, codec_port, tx, payload);
 		/* write to interface device */
 		ret = wcd9xxx_interface_reg_write(wcd9xxx,

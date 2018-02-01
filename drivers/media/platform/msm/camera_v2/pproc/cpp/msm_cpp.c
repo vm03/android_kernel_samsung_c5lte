@@ -961,7 +961,7 @@ static int cpp_init_hardware(struct cpp_device *cpp_dev)
 	if (msm_micro_iface_idx < 0)  {
 		pr_err("Fail to get clock index\n");
 		rc = msm_micro_iface_idx;
-		goto fs_failed;
+		goto clk_failed;
 	}
 
 	cpp_dev->cpp_clk[msm_micro_iface_idx] =
@@ -1246,13 +1246,13 @@ static int cpp_open_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	CPP_DBG("E\n");
 
 	if (!sd || !fh) {
-		pr_err("Wrong input parameters sd %p fh %p!",
+		pr_err("Wrong input parameters sd %pK fh %pK!",
 			sd, fh);
 		return -EINVAL;
 	}
 	cpp_dev = v4l2_get_subdevdata(sd);
 	if (!cpp_dev) {
-		pr_err("failed: cpp_dev %p\n", cpp_dev);
+		pr_err("failed: cpp_dev %pK\n", cpp_dev);
 		return -EINVAL;
 	}
 	mutex_lock(&cpp_dev->mutex);
@@ -1275,7 +1275,7 @@ static int cpp_open_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		return -ENODEV;
 	}
 
-	CPP_DBG("open %d %p\n", i, &fh->vfh);
+	CPP_DBG("open %d %pK\n", i, &fh->vfh);
 	cpp_dev->cpp_open_cnt++;
 	if (cpp_dev->cpp_open_cnt == 1) {
 		rc = cpp_init_hardware(cpp_dev);
@@ -1317,7 +1317,7 @@ static int cpp_close_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	cpp_dev =  v4l2_get_subdevdata(sd);
 
 	if (!cpp_dev) {
-		pr_err("failed: cpp_dev %p\n", cpp_dev);
+		pr_err("failed: cpp_dev %pK\n", cpp_dev);
 		return -EINVAL;
 	}
 
@@ -1470,7 +1470,7 @@ static void msm_cpp_dump_registry(struct cpp_device *cpp_dev)
 	int i, j;
 	int size = 0x960;
 	uint32_t read[8];
-	pr_err("%s: %p %d\n", __func__, cpp_dev->cpp_hw_base, size);
+	pr_err("%s: %pK %d\n", __func__, cpp_dev->cpp_hw_base, size);
 
 	for (i = 0; i < (size/ (8*4)); i++) {
 		for (j= 0; j < 8; j++) {
@@ -1656,7 +1656,7 @@ static void msm_cpp_do_timeout_work(struct work_struct *work)
 	mutex_lock(&cpp_dev->mutex);
 
 	if (!work || cpp_timer.data.cpp_dev->state != CPP_STATE_ACTIVE) {
-		pr_err("Invalid work:%p or state:%d\n", work,
+		pr_err("Invalid work:%pK or state:%d\n", work,
 			cpp_timer.data.cpp_dev->state);
 		goto end;
 	}
@@ -1966,6 +1966,8 @@ static int msm_cpp_check_buf_type(struct msm_buf_mngr_info *buff_mgr_info,
 			/* More or equal bufs as Input buffer */
 			num_output_bufs = new_frame->batch_info.batch_size;
 		}
+		if (num_output_bufs > MSM_OUTPUT_BUF_CNT)
+			return 0;
 		for (i = 0; i < num_output_bufs; i++) {
 			new_frame->output_buffer_info[i].index =
 				buff_mgr_info->user_buf.buf_idx[i];
@@ -2335,7 +2337,7 @@ static int msm_cpp_cfg_frame(struct cpp_device *cpp_dev,
 	struct msm_buf_mngr_info buff_mgr_info, dup_buff_mgr_info;
 	int32_t in_fd;
 	int32_t num_output_bufs = 1;
-	int32_t stripe_base = 0;
+	uint32_t stripe_base = 0;
 	uint32_t stripe_size;
 	uint8_t tnr_enabled;
 	enum msm_camera_buf_mngr_buf_type buf_type =
@@ -2356,21 +2358,46 @@ static int msm_cpp_cfg_frame(struct cpp_device *cpp_dev,
 		return -EINVAL;
 	}
 
-	if (!new_frame->partial_frame_indicator) {
-		if (cpp_frame_msg[new_frame->msg_len - 1] !=
-			MSM_CPP_MSG_ID_TRAILER) {
-			pr_err("Invalid frame message\n");
-			return -EINVAL;
-		}
+	if (cpp_frame_msg[new_frame->msg_len - 1] !=
+		MSM_CPP_MSG_ID_TRAILER) {
+		pr_err("Invalid frame message\n");
+		return -EINVAL;
+	}
 
-		if ((stripe_base + new_frame->num_strips * stripe_size + 1) !=
-			new_frame->msg_len) {
-			pr_err("Invalid frame message,len=%d,expected=%d\n",
-				new_frame->msg_len,
-				(stripe_base +
-				new_frame->num_strips * stripe_size + 1));
-			return -EINVAL;
-		}
+	/* Stripe index starts at zero */
+	if ((!new_frame->num_strips) ||
+		(new_frame->first_stripe_index >= new_frame->num_strips) ||
+		(new_frame->last_stripe_index  >= new_frame->num_strips) ||
+		(new_frame->first_stripe_index >
+			new_frame->last_stripe_index)) {
+		pr_err("Invalid frame message, #stripes=%d, stripe indices=[%d,%d]\n",
+			new_frame->num_strips,
+			new_frame->first_stripe_index,
+			new_frame->last_stripe_index);
+		return -EINVAL;
+	}
+
+	if (!stripe_size) {
+		pr_err("Invalid frame message, invalid stripe_size (%d)!\n",
+			stripe_size);
+		return -EINVAL;
+	}
+
+	if ((stripe_base == UINT_MAX) ||
+		(new_frame->num_strips >
+			(UINT_MAX - 1 - stripe_base) / stripe_size)) {
+		pr_err("Invalid frame message, num_strips %d is large\n",
+			new_frame->num_strips);
+		return -EINVAL;
+	}
+
+	if ((stripe_base + new_frame->num_strips * stripe_size + 1) !=
+		new_frame->msg_len) {
+		pr_err("Invalid frame message,len=%d,expected=%d\n",
+			new_frame->msg_len,
+			(stripe_base +
+			new_frame->num_strips * stripe_size + 1));
+		return -EINVAL;
 	}
 
 	if (cpp_dev->iommu_state != CPP_IOMMU_STATE_ATTACHED) {
@@ -2557,13 +2584,14 @@ static int msm_cpp_cfg(struct cpp_device *cpp_dev,
 	struct msm_cpp_frame_info_t *frame = NULL;
 	struct msm_cpp_frame_info_t k_frame_info;
 	int32_t rc = 0;
-	int32_t i = 0;
-	int32_t num_buff = sizeof(k_frame_info.output_buffer_info)/
-		sizeof(struct msm_cpp_buffer_info_t);
+	uint32_t i = 0;
+	uint32_t num_buff = sizeof(k_frame_info.output_buffer_info) /
+				sizeof(struct msm_cpp_buffer_info_t);
+
 	if (copy_from_user(&k_frame_info,
 			(void __user *)ioctl_ptr->ioctl_ptr,
 			sizeof(k_frame_info)))
-			return -EFAULT;
+		return -EFAULT;
 
 	frame = msm_cpp_get_frame(ioctl_ptr);
 	if (!frame) {
@@ -2621,7 +2649,7 @@ static int msm_cpp_copy_from_ioctl_ptr(void *dst_ptr,
 {
 	int ret;
 	if ((ioctl_ptr->ioctl_ptr == NULL) || (ioctl_ptr->len == 0)) {
-		pr_err("%s: Wrong ioctl_ptr %p / len %zu\n", __func__,
+		pr_err("%s: Wrong ioctl_ptr %pK / len %zu\n", __func__,
 			ioctl_ptr, ioctl_ptr->len);
 		return -EINVAL;
 	}
@@ -2644,7 +2672,7 @@ static int msm_cpp_copy_from_ioctl_ptr(void *dst_ptr,
 {
 	int ret;
 	if ((ioctl_ptr->ioctl_ptr == NULL) || (ioctl_ptr->len == 0)) {
-		pr_err("%s: Wrong ioctl_ptr %p / len %zu\n", __func__,
+		pr_err("%s: Wrong ioctl_ptr %pK / len %zu\n", __func__,
 			ioctl_ptr, ioctl_ptr->len);
 		return -EINVAL;
 	}
@@ -2667,14 +2695,15 @@ static int msm_cpp_validate_input(unsigned int cmd, void *arg,
 		break;
 	default:
 		if (ioctl_ptr == NULL) {
-			pr_err("Wrong ioctl_ptr %p\n", ioctl_ptr);
+			pr_err("Wrong ioctl_ptr for cmd %u\n", cmd);
 			return -EINVAL;
 		}
 
 		*ioctl_ptr = arg;
-		if ((*ioctl_ptr == NULL) ||
-			((*ioctl_ptr)->ioctl_ptr == NULL)) {
-			pr_err("Wrong arg %p\n", arg);
+		if (((*ioctl_ptr) == NULL) ||
+			((*ioctl_ptr)->ioctl_ptr == NULL) ||
+			((*ioctl_ptr)->len == 0)) {
+			pr_err("Error invalid ioctl argument cmd %u\n", cmd);
 			return -EINVAL;
 		}
 		break;
@@ -2706,12 +2735,16 @@ long msm_cpp_subdev_ioctl(struct v4l2_subdev *sd,
 	int rc = 0;
 
 	if (sd == NULL) {
-		pr_err("sd %p\n", sd);
+		pr_err("sd %pK\n", sd);
 		return -EINVAL;
 	}
 	cpp_dev = v4l2_get_subdevdata(sd);
 	if (cpp_dev == NULL) {
 		pr_err("cpp_dev is null\n");
+		return -EINVAL;
+	}
+	if (_IOC_DIR(cmd) == _IOC_NONE) {
+		pr_err("Invalid ioctl/subdev cmd %u", cmd);
 		return -EINVAL;
 	}
 	rc = msm_cpp_validate_input(cmd, arg, &ioctl_ptr);
@@ -2781,7 +2814,7 @@ long msm_cpp_subdev_ioctl(struct v4l2_subdev *sd,
 				&cpp_dev->pdev->dev);
 			if (rc) {
 				dev_err(&cpp_dev->pdev->dev,
-					"Fail to loc blob %s dev %p, rc:%d\n",
+					"Fail to loc blob %s dev %pK, rc:%d\n",
 					cpp_dev->fw_name_bin,
 					&cpp_dev->pdev->dev, rc);
 				kfree(cpp_dev->fw_name_bin);
@@ -3196,6 +3229,7 @@ STREAM_BUFF_END:
 		} else {
 			pr_err("%s:%d IOMMMU attach triggered in invalid state\n",
 				__func__, __LINE__);
+			rc = -EINVAL;
 		}
 		break;
 	}
@@ -3237,14 +3271,14 @@ static long msm_cpp_subdev_do_ioctl(
 	struct v4l2_fh *vfh = NULL;
 
 	if ((arg == NULL) || (file == NULL)) {
-		pr_err("Invalid input parameters arg %p, file %p\n", arg, file);
+		pr_err("Invalid input parameters arg %pK, file %pK\n", arg, file);
 		return -EINVAL;
 	}
 	vdev = video_devdata(file);
 	sd = vdev_to_v4l2_subdev(vdev);
 
 	if (sd == NULL) {
-		pr_err("Invalid input parameter sd %p\n", sd);
+		pr_err("Invalid input parameter sd %pK\n", sd);
 		return -EINVAL;
 	}
 	vfh = file->private_data;
@@ -3512,6 +3546,7 @@ static long msm_cpp_subdev_fops_compat_ioctl(struct file *file,
 	struct msm_cpp_stream_buff_info_t k64_cpp_buff_info;
 	struct msm_cpp_frame_info32_t k32_frame_info;
 	struct msm_cpp_frame_info_t k64_frame_info;
+	struct msm_camera_smmu_attach_type kb_cpp_smmu_attach_info;
 	void __user *up = (void __user *)arg;
 
 	if (sd == NULL) {
@@ -3520,7 +3555,7 @@ static long msm_cpp_subdev_fops_compat_ioctl(struct file *file,
 	}
 	cpp_dev = v4l2_get_subdevdata(sd);
 	if (!vdev || !cpp_dev) {
-		pr_err("Invalid vdev %p or cpp_dev %p structures!",
+		pr_err("Invalid vdev %pK or cpp_dev %pK structures!",
 			vdev, cpp_dev);
 		return -EINVAL;
 	}
@@ -3802,11 +3837,22 @@ static long msm_cpp_subdev_fops_compat_ioctl(struct file *file,
 		break;
 	}
 	case VIDIOC_MSM_CPP_IOMMU_ATTACH32:
-		cmd = VIDIOC_MSM_CPP_IOMMU_ATTACH;
-		break;
 	case VIDIOC_MSM_CPP_IOMMU_DETACH32:
-		cmd = VIDIOC_MSM_CPP_IOMMU_DETACH;
+	{
+		if ((kp_ioctl.len != sizeof(struct msm_camera_smmu_attach_type))
+			|| (copy_from_user(&kb_cpp_smmu_attach_info,
+				(void __user *)kp_ioctl.ioctl_ptr,
+				sizeof(kb_cpp_smmu_attach_info)))) {
+			mutex_unlock(&cpp_dev->mutex);
+			return -EINVAL;
+		}
+
+		kp_ioctl.ioctl_ptr = (void *)&kb_cpp_smmu_attach_info;
+		cmd = (cmd == VIDIOC_MSM_CPP_IOMMU_ATTACH32) ?
+			VIDIOC_MSM_CPP_IOMMU_ATTACH :
+			VIDIOC_MSM_CPP_IOMMU_DETACH;
 		break;
+	}
 	case MSM_SD_NOTIFY_FREEZE:
 		break;
 	case MSM_SD_SHUTDOWN:
@@ -3815,7 +3861,8 @@ static long msm_cpp_subdev_fops_compat_ioctl(struct file *file,
 	default:
 		pr_err_ratelimited("%s: unsupported compat type :%x LOAD %lu\n",
 				__func__, cmd, VIDIOC_MSM_CPP_LOAD_FIRMWARE);
-		break;
+		mutex_unlock(&cpp_dev->mutex);
+		return -EINVAL;
 	}
     mutex_unlock(&cpp_dev->mutex);
 
@@ -3844,7 +3891,7 @@ static long msm_cpp_subdev_fops_compat_ioctl(struct file *file,
 	default:
 		pr_err_ratelimited("%s: unsupported compat type :%d\n",
 				__func__, cmd);
-		break;
+		return -EINVAL;
 	}
 
 	up32_ioctl.id = kp_ioctl.id;

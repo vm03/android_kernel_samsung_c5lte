@@ -60,7 +60,11 @@
 
 /* Device Type 2 register */
 #define DEV_TYPE2_AV			(0x1 << 6)
+#if defined(CONFIG_MUIC_SUPPORT_GAMEPAD)
 #define DEV_TYPE2_GAMEPAD		(0x1 << 5)
+#else
+#define DEV_TYPE2_TTY			(0x1 << 5)
+#endif
 #define DEV_TYPE2_PPD			(0x1 << 4)
 #define DEV_TYPE2_JIG_UART_OFF		(0x1 << 3)
 #define DEV_TYPE2_JIG_UART_ON		(0x1 << 2)
@@ -121,10 +125,17 @@ static struct vps_cfg cfg_CHARGING_CABLE = {
 	.name = "Charging Cable",
 	.attr = MATTR(VCOM_USB, VB_ANY),
 };
+#if defined(CONFIG_MUIC_SUPPORT_GAMEPAD)
 static struct vps_cfg cfg_GAMEPAD = {
 	.name = "Game Pad",
 	.attr = MATTR(VCOM_USB, VB_ANY),
 };
+#else
+static struct vps_cfg cfg_UNIVERSAL_MMDOCK = {
+	.name = "Universal Multimedia dock",
+	.attr = MATTR(VCOM_USB, VB_HIGH),
+};
+#endif
 static struct vps_cfg cfg_JIG_USB_OFF = {
 	.name = "Jig USB Off",
 	.attr = MATTR(VCOM_USB, VB_HIGH) | MATTR_FACT_SUPP,
@@ -171,14 +182,18 @@ static struct vps_tbl_data vps_table[] = {
 	[MDEV(OTG)]			= {0x00, "GND",	&cfg_OTG,},
 	[MDEV(MHL)]			= {0xfe, "1K",		&cfg_MHL,},
 	/* 0x01 ~ 0x0D : Remote Sx Button */
-	[MDEV(VZW_ACC)]		= {0x0e, "28.7K",	&cfg_VZW_ACC,},
+	[MDEV(VZW_ACC)]			= {0x0e, "28.7K",	&cfg_VZW_ACC,},
 	[MDEV(VZW_INCOMPATIBLE)]	= {0x0f, "34K",	&cfg_VZW_INCOMPATIBLE,},
 	[MDEV(SMARTDOCK)]		= {0x10, "40.2K",	&cfg_SMARTDOCK,},
 	[MDEV(HMT)]			= {0x11, "49.9K",	&cfg_HMT,},
 	[MDEV(AUDIODOCK)]		= {0x12, "64.9K",	&cfg_AUDIODOCK,},
 	[MDEV(USB_LANHUB)]		= {0x13, "80.07K",	&cfg_USB_LANHUB,},
-	[MDEV(CHARGING_CABLE)]	= {0x14, "102K",	&cfg_CHARGING_CABLE,},
-	[MDEV(GAMEPAD)]		= {0x15, "121K",	&cfg_GAMEPAD,},
+	[MDEV(CHARGING_CABLE)]		= {0x14, "102K",	&cfg_CHARGING_CABLE,},
+#if defined(CONFIG_MUIC_SUPPORT_GAMEPAD)
+	[MDEV(GAMEPAD)]			= {0x15, "121K",	&cfg_GAMEPAD,},
+#else
+	[MDEV(UNIVERSAL_MMDOCK)]	= {0x15, "121K",	&cfg_UNIVERSAL_MMDOCK,},
+#endif
 	/* 0x16: UART Cable */
 	/* 0x17: CEA-936A Type 1 Charger */
 	[MDEV(JIG_USB_OFF)]		= {0x18, "255K",	&cfg_JIG_USB_OFF,},
@@ -598,12 +613,20 @@ static int resolve_dedicated_dev(muic_data_t *pmuic, muic_attached_dev_t *pdev, 
 		new_dev = ATTACHED_DEV_JIG_USB_ON_MUIC;
 		pr_info("%s : JIG_USB_ON DETECTED\n", MUIC_DEV_NAME);
 		break;
+#if defined(CONFIG_MUIC_SUPPORT_GAMEPAD)
 	case DEV_TYPE2_GAMEPAD:
 		intr = MUIC_INTR_ATTACH;
 		new_dev = ATTACHED_DEV_GAMEPAD_MUIC;
 		pr_info("%s : UNIVERSAL_GAMEPAD DETECTED\n", MUIC_DEV_NAME);
 		break;
-
+#else
+	case DEV_TYPE2_TTY:
+		if (!vbvolt) break;
+		intr = MUIC_INTR_ATTACH;
+		new_dev = ATTACHED_DEV_UNIVERSAL_MMDOCK_MUIC;
+		pr_info("%s : UNIVERSAL_MMDOCK DETECTED\n", MUIC_DEV_NAME);
+		break;
+#endif
 	default:
 		break;
 	}
@@ -729,11 +752,20 @@ static int resolve_dedicated_dev(muic_data_t *pmuic, muic_attached_dev_t *pdev, 
 				pr_info("%s : ADC OPEN DETECTED\n", MUIC_DEV_NAME);
 			}
 			break;
+
+#if defined(CONFIG_MUIC_SUPPORT_GAMEPAD)
 		case ADC_GAMEPAD:
 			intr = MUIC_INTR_ATTACH;
 			new_dev = ATTACHED_DEV_GAMEPAD_MUIC;
 			pr_info("%s : ADC GAMEPAD DETECTED\n", MUIC_DEV_NAME);
 			break;
+#else
+		case ADC_UNIVERSAL_MMDOCK:
+			intr = MUIC_INTR_ATTACH;
+			new_dev = ATTACHED_DEV_UNIVERSAL_MMDOCK_MUIC;
+			pr_info("%s : ADC UNIVERSAL_MMDOCK\n", MUIC_DEV_NAME);
+			break;
+#endif
 
 		case ADC_RESERVED_VZW:
 			new_dev = ATTACHED_DEV_VZW_ACC_MUIC;

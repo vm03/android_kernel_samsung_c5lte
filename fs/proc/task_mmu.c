@@ -322,11 +322,7 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 
 	/* We don't show the stack guard page in /proc/maps */
 	start = vma->vm_start;
-	if (stack_guard_page_start(vma, start))
-		start += PAGE_SIZE;
 	end = vma->vm_end;
-	if (stack_guard_page_end(vma, end))
-		end -= PAGE_SIZE;
 
 	seq_setwidth(m, 25 + sizeof(void *) * 6 - 1);
 	seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
@@ -512,15 +508,15 @@ static void smaps_pte_entry(pte_t ptent, unsigned long addr,
 		if (!non_swap_entry(swpent)) {
 			int mapcount;
 
-			mss->swap += ptent_size;
+			mss->swap += PAGE_SIZE;
 			mapcount = swp_swapcount(swpent);
 			if (mapcount >= 2) {
-				u64 pss_delta = (u64)ptent_size << PSS_SHIFT;
+				u64 pss_delta = (u64)PAGE_SIZE << PSS_SHIFT;
 
 				do_div(pss_delta, mapcount);
 				mss->swap_pss += pss_delta;
 			} else {
-				mss->swap_pss += (u64)ptent_size << PSS_SHIFT;
+				mss->swap_pss += (u64)PAGE_SIZE << PSS_SHIFT;
 			}
 		} else if (is_migration_entry(swpent))
 			page = migration_entry_to_page(swpent);

@@ -64,4 +64,4 @@ obj-$(CONFIG_KEYBOARD_ABOV_TOUCH_16XX)	+= abov_touchkey_16xx.o
 obj-$(CONFIG_KEYBOARD_CYPRESS_TOUCHKEY)	+= cypress_touchkey/
 obj-$(CONFIG_KEYBOARD_TC300K)   += tc300k.o
 obj-$(CONFIG_KEYBOARD_TC350K)   += tc350k.o
-
+obj-$(CONFIG_KEYBOARD_MELFAS_MHS204) += melfas_mip4/

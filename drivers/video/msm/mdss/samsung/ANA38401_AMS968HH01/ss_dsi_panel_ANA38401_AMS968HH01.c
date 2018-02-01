@@ -898,6 +898,9 @@ static void  mdss_panel_init(struct samsung_display_driver_data *vdd)
 
 	/* force ACL */
 	vdd->panel_func.samsung_force_acl_on = mdss_force_acl_on;
+
+	/* ACL default ON */
+	vdd->acl_status = 1;
 }
 
 static int __init samsung_panel_init(void)

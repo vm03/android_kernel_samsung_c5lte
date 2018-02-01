@@ -127,8 +127,8 @@
 		/*qcom,mdss-dsi-pwm-gpio=*/
 
 		qcom,mdss-dsi-bl-min-level = <1>;
-		qcom,mdss-dsi-bl-max-level = <255>;
-		qcom,mdss-brightness-max-level = <255>;
+		qcom,mdss-dsi-bl-max-level = <354>;
+		qcom,mdss-brightness-max-level = <354>;
 		qcom,mdss-dsi-interleave-mode = <0>;
 		qcom,mdss-dsi-panel-type = "dsi_cmd_mode";
 		qcom,mdss-dsi-force-clock-lane-hs;
@@ -199,11 +199,13 @@
 
 		/*qcom,ulps-enabled;*/
 		/*qcom,suspend-ulps-enabled;*/
-		/*qcom,esd-check-enabled*/
+		qcom,esd_irq_gpio = <&msm_gpio 56 0>;
+		qcom,esd-check-enabled;
+		qcom,mdss-dsi-panel-status-check-mode ="reg_read_irq";
+		qcom,mdss-dsi-panel-status-value=<1>;
+		qcom,mdss-dsi-panel-status-irq-trigger = "falling";
 		/*qcom,mdss-dsi-panel-status-command=*/
 		/*qcom,mdss-dsi-panel-status-command-mode="dsi_lp_mode";*/
-		/*qcom,mdss-dsi-panel-status-check-mode="reg_read";*/
-		/*qcom,mdss-dsi-panel-status-value=<1>;*/
 		/*qcom,dynamic-mode-switch-enabled*/
 		/*qcom,video-to-cmd-mode-switch-commands=*/
 		/*qcom,cmd-to-video-mode-switch-commands=*/
@@ -217,6 +219,7 @@
 *
 * ************************************************************************************************************************************
 */
+		samsung,enter_hbm_lux = <10000>;
 		samsung,support_panel_max = <1>;
 		samsung,tcon-clk-on-support;
 		samsung,hw-config = "split_dsi";
@@ -646,6 +649,9 @@
 			62	221	231	316
 			63	232	243	333
 			64	244	255	360
+		>;
+		samsung,hbm_candela_map_table_revA = <
+			0	354	354	500	6
 		>;
 	};
 };

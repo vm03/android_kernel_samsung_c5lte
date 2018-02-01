@@ -23,6 +23,9 @@ elif [ "$BUILD_COMMAND" == "gts210velte_eur" ]; then
 elif [ "$BUILD_COMMAND" == "gts28vewifi_eur" ]; then
         PRODUCT_NAME=gts28vewifi
         SIGN_MODEL=
+elif [ "$BUILD_COMMAND" == "c9lte_chn" ]; then
+        PRODUCT_NAME=c9ltechn
+        SIGN_MODEL=
 fi
 
 BUILD_WHERE=$(pwd)
@@ -296,6 +299,7 @@ SECFUNC_PRINT_HELP()
 	echo "	for A9XLTE CHN OPEN use a9xlte_chn"
 	echo "	for A9XLTE CHN LDU use a9xlte_chnldu"
 	echo "	for A9XPROLTE CHN OPEN use a9xprolte_chn"
+	echo "	for C9LTE CHN OPEN use c9lte_chn"
 	echo "  for GTS28VELTE EUR OPEN use gts28velte_eur"
 	echo "  for GTS28VELTE CHN OPEN use gts28velte_chn"
 	echo "  for GTS210VELTE EUR OPEN use gts210velte_eur"

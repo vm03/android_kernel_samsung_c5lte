@@ -157,6 +157,9 @@ struct sec_battery_info {
 	unsigned long wc_heating_passed_time;
 	unsigned int wc_heat_limit;
 
+	unsigned long lcd_on_total_time;
+	unsigned long lcd_on_time;
+
 	/* HV charging , Prevent heat up and Scald */
 	bool hv_overheating;
 
@@ -202,6 +205,9 @@ struct sec_battery_info {
 	bool is_jig_on;
 	int wdt_kick_disable;
 	int cable_type;
+#if defined(CONFIG_CHANGE_VBUS_VOLTAGE)
+	int vbus_chg_by_siop;
+#endif
 	int muic_cable_type;
 #if defined(CONFIG_VBUS_NOTIFIER)
 	int muic_vbus_status;

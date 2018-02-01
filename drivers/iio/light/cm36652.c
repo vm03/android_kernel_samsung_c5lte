@@ -81,7 +81,7 @@
 #ifdef CM36652_CANCELATION
 #define CANCELATION_FILE_PATH	"/efs/FactoryApp/prox_cal"
 #define CAL_SKIP_ADC		9
-#define CAL_FAIL_ADC		19
+#define CAL_FAIL_ADC		26
 #endif
 
 #define PROX_READ_NUM		40
@@ -467,6 +467,8 @@ static int proximity_store_cancelation(struct device *dev, bool do_calib)
 			cm36652_iio->uProxCalResult = 2;
 			err = 1;
 		} else if (ps_reg_init_setting[PS_CANCEL][CMD] < CAL_FAIL_ADC) {
+			ps_reg_init_setting[PS_CANCEL][CMD] =
+				cm36652_iio->pdata->trim + ps_data;
 			pr_info("%s:crosstalk_offset = %u Canceled", __func__,
 				ps_reg_init_setting[PS_CANCEL][CMD]);
 			cm36652_iio->uProxCalResult = 1;
