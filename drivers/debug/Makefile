@@ -2,7 +2,7 @@
 
 obj-$(CONFIG_SEC_BSP) += sec_bsp.o sec_smem.o
 
-ifeq ($(CONFIG_ARCH_MSM8976),y)
+ifeq ($(CONFIG_ARCH_MSM8952),y)
 obj-$(CONFIG_SEC_DEBUG) += sec_debug.o
 endif
 

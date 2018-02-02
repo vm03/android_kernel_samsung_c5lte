@@ -194,9 +194,6 @@ obj-$(CONFIG_SENSORS_SSP)	+= sensorhub/
 # CONFIG_SEC_DEBUG
 obj-y				+= debug/
 
-#CONFIG_ARCH_MSM8952
-obj-$(CONFIG_ARCH_MSM8952)     += debug_32/
-
 ifeq ($(CONFIG_FB_MSM_MDSS_SAMSUNG),y)
 	LINUXINCLUDE	+=  -I$(srctree)/drivers/video/msm/mdss/samsung/
 endif
