@@ -2406,7 +2406,7 @@ static void fw_update(void *device_data)
 
 		fp = filp_open(ZINITIX_DEFAULT_UMS_FW, O_RDONLY, S_IRUSR);
 		if (IS_ERR(fp)) {
-			dev_err(&client->dev, "file(%s) open error:%d\n", ZINITIX_DEFAULT_UMS_FW, (s32)fp);
+			dev_err(&client->dev, "file(%s) open error.\n", ZINITIX_DEFAULT_UMS_FW);
 			finfo->cmd_state = FAIL;
 			goto err_open;
 		}
@@ -2482,7 +2482,7 @@ static void fw_update(void *device_data)
 	set_cmd_result(finfo, finfo->cmd_buff,
 			strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
 	dev_info(&client->dev, "%s: %s(%d)\n", __func__, finfo->cmd_buff,
-				strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
+				(int)strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
 	devm_kfree(&client->dev, buff);
 
 	return;
@@ -2540,7 +2540,7 @@ static void get_fw_ver_bin(void *device_data)
 	finfo->cmd_state = OK;
 
 	dev_info(&client->dev, "%s: %s(%d)\n", __func__, finfo->cmd_buff,
-				strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
+				(int)strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
 
 	if (info->fw_data) {
 		release_firmware(tsp_fw);
@@ -2593,7 +2593,7 @@ static void get_fw_ver_ic(void *device_data)
 	finfo->cmd_state = OK;
 
 	dev_info(&client->dev, "%s: %s(%d)\n", __func__, finfo->cmd_buff,
-				strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
+				(int)strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
 
 	return;
 }
@@ -2613,7 +2613,7 @@ static void get_threshold(void *device_data)
 	finfo->cmd_state = OK;
 
 	dev_info(&client->dev, "%s: %s(%d)\n", __func__, finfo->cmd_buff,
-				strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
+				(int)strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
 
 	return;
 }
@@ -2634,7 +2634,7 @@ static void get_chip_vendor(void *device_data)
 	finfo->cmd_state = OK;
 
 	dev_info(&client->dev, "%s: %s(%d)\n", __func__, finfo->cmd_buff,
-				strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
+				(int)strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
 
 	return;
 }
@@ -2656,7 +2656,7 @@ static void get_chip_name(void *device_data)
 	finfo->cmd_state = OK;
 
 	dev_info(&client->dev, "%s: %s(%d)\n", __func__, finfo->cmd_buff,
-				strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
+				(int)strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
 
 	return;
 }
@@ -2676,7 +2676,7 @@ static void get_x_num(void *device_data)
 	finfo->cmd_state = OK;
 
 	dev_info(&client->dev, "%s: %s(%d)\n", __func__, finfo->cmd_buff,
-				strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
+				(int)strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
 
 	return;
 }
@@ -2696,7 +2696,7 @@ static void get_y_num(void *device_data)
 	finfo->cmd_state = OK;
 
 	dev_info(&client->dev, "%s: %s(%d)\n", __func__, finfo->cmd_buff,
-				strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
+				(int)strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
 
 	return;
 }
@@ -2719,7 +2719,7 @@ static void not_support_cmd(void *device_data)
 	mutex_unlock(&finfo->cmd_lock);
 
 	dev_info(&client->dev, "%s: %s(%d)\n", __func__, finfo->cmd_buff,
-				strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
+				(int)strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
 
 	return;
 }
@@ -2878,7 +2878,7 @@ static void run_dnd_read(void *device_data)
 	}
 
 	dev_info(&client->dev, "%s: %s(%d)\n", __func__, finfo->cmd_buff,
-				strlen(finfo->cmd_buff));
+				(int)strlen(finfo->cmd_buff));
 
 #if ESD_TIMER_INTERVAL
 	esd_timer_start(CHECK_ESD_TIMER, misc_info);
@@ -2920,7 +2920,7 @@ static void get_dnd(void *device_data)
 	finfo->cmd_state = OK;
 
 	dev_info(&client->dev, "%s: %s(%d)\n", __func__, finfo->cmd_buff,
-				strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
+				(int)strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
 
 	return;
 }
@@ -3159,7 +3159,7 @@ static void run_delta_read(void *device_data)
 	}
 
 	dev_info(&client->dev, "%s: %s(%d)\n", __func__, finfo->cmd_buff,
-				strlen(finfo->cmd_buff));
+				(int)strlen(finfo->cmd_buff));
 
 #if ESD_TIMER_INTERVAL
 	esd_timer_start(CHECK_ESD_TIMER, misc_info);
@@ -3201,7 +3201,7 @@ static void get_delta(void *device_data)
 	finfo->cmd_state = OK;
 
 	dev_info(&client->dev, "%s: %s(%d)\n", __func__, finfo->cmd_buff,
-				strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
+				(int)strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
 
 	return;
 }
@@ -3238,7 +3238,7 @@ err:
 	set_cmd_result(finfo, finfo->cmd_buff,
 			strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
 	dev_info(&client->dev, "%s: %s(%d)\n", __func__, finfo->cmd_buff,
-				strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
+				(int)strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
 
 	return;
 }
@@ -3270,7 +3270,7 @@ static void spay_enable(void *device_data)
 	finfo->cmd_is_running = false;
 
 	dev_info(&info->client->dev, "%s: %s(%d)\n", __func__, finfo->cmd_buff,
-				strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
+				(int)strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
 }
 
 static void clear_cover_mode(void *device_data)
@@ -3305,7 +3305,7 @@ static void clear_cover_mode(void *device_data)
 	finfo->cmd_is_running = false;
 
 	dev_info(&info->client->dev, "%s: %s(%d)\n", __func__, finfo->cmd_buff,
-				strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
+				(int)strnlen(finfo->cmd_buff, sizeof(finfo->cmd_buff)));
 
 	return;
 }
@@ -3952,7 +3952,7 @@ static long ts_misc_fops_ioctl(struct file *filp,
 		if (copy_from_user(&sz, argp, sizeof(size_t)))
 			return -1;
 
-		dev_info(&misc_info->client->dev, "firmware size = %d\n", sz);
+		dev_info(&misc_info->client->dev, "firmware size = %d\n", (int)sz);
 		if (misc_info->cap_info.ic_fw_size != sz) {
 			dev_err(&misc_info->client->dev, ": firmware size error\r\n");
 			return -1;
@@ -4210,7 +4210,7 @@ fail_hw_cal:
 		u8Data = (u8 *)&misc_info->cur_data[0];
 		if (raw_ioctl.sz > MAX_TRAW_DATA_SZ * 2)
 			raw_ioctl.sz = MAX_TRAW_DATA_SZ * 2;
-		if (copy_to_user((void *)raw_ioctl.buf, (u8 *)u8Data, raw_ioctl.sz)) {
+		if (copy_to_user(raw_ioctl.buf, (u8 *)u8Data, raw_ioctl.sz)) {
 			up(&misc_info->raw_data_lock);
 			return -1;
 		}
