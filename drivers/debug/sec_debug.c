@@ -1207,8 +1207,9 @@ static int set_reset_extra_info_proc_show(struct seq_file *m, void *v)
 
 		offset += snprintf((char *)buf + offset, SEC_DEBUG_EX_INFO_SIZE - offset,
 			"\"FAULT\":\"pgd=%016llx,VA=%016llx,*pgd=%016llx,*pud=%016llx,*pmd=%016llx,*pte=%016llx\",\n",
-			info->fault_addr[0],info->fault_addr[1],info->fault_addr[2],
-			info->fault_addr[3],info->fault_addr[4],info->fault_addr[5]);
+			(long long unsigned int)info->fault_addr[0],(long long unsigned int)info->fault_addr[1],
+			(long long unsigned int)info->fault_addr[2],(long long unsigned int)info->fault_addr[3],
+			(long long unsigned int)info->fault_addr[4],(long long unsigned int)info->fault_addr[5]);
 
 		offset += snprintf((char *)buf + offset, SEC_DEBUG_EX_INFO_SIZE - offset,
 			"\"BUG\":\"%s\",\n", info->bug_buf);
