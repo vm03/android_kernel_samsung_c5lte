@@ -269,6 +269,27 @@ config ARCH_MSM8992
 	  Enable kernel support for the MSM8992 chipset. If you don't
 	  know what this is, you can safely say 'N' here.
 
+config ARCH_MSM8952
+	bool "MSM8952"
+	depends on ARCH_MSM8916
+	help
+	  The SAMSUNG intend to divide MSM8916 & MSM8952 KERNEL feature to cover many
+          products using these ARCH_8916/8952 series chipse.
+
+config SEC_C5LTE_PROJECT
+  depends on ARCH_MSM8952
+        default n
+        bool "Samsung C5 LTE Project"
+        help
+        Support for Samsung C5 LTE Project.
+
+config MACH_C5LTE_CHN_OPEN
+        bool "Samsung C5LTE CHN OPEN"
+        depends on SEC_C5LTE_PROJECT
+        default n
+        help
+        Support for Samsung C5LTE CHN OPEN.
+
 config ARCH_MSM8976
 	bool "MSM8976"
         depends on ARCH_MSM8916

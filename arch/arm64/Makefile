@@ -77,7 +77,7 @@ dtbs: scripts
 ifeq ($(CONFIG_ARCH_MSM8976),y)
 	$(Q)$(MAKE) $(build)=$(boot)/dts/samsung/msm8976 dtbs
 else
-	$(Q)$(MAKE) $(build)=$(boot)/dts/qcom dtbs
+	$(Q)$(MAKE) $(build)=$(boot)/dts/samsung/msm8952 dtbs
 endif
 
 PHONY += vdso_install
