@@ -371,7 +371,7 @@ enum zinitix_cover_id {
 
 struct raw_ioctl {
 	u32 sz;
-	u32 buf;
+	u32 *buf;
 };
 
 struct reg_ioctl {
