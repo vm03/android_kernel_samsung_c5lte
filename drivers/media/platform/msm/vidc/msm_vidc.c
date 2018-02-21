@@ -1436,7 +1436,8 @@ static void cleanup_instance(struct msm_vidc_inst *inst)
 		debugfs_remove_recursive(inst->debugfs_root);
 
 		mutex_lock(&inst->pending_getpropq.lock);
-		WARN_ON(!list_empty(&inst->pending_getpropq.list));
+		WARN_ON(!list_empty(&inst->pending_getpropq.list)
+			&& (msm_vidc_debug & VIDC_INFO));
 		mutex_unlock(&inst->pending_getpropq.lock);
 	}
 }
@@ -1461,7 +1462,7 @@ int msm_vidc_close(void *instance)
 			list_del(&bi->list);
 			for (i = 0; (i < bi->num_planes)
 				&& (i < VIDEO_MAX_PLANES); i++) {
-				if (bi->handle[i])
+				if (bi->handle[i] && bi->mapped[i])
 					msm_comm_smem_free(inst, bi->handle[i]);
 			}
 			kfree(bi);

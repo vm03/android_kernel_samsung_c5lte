@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014, 2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -23,6 +23,8 @@
 #include <soc/qcom/msm_qmi_interface.h>
 #include "sharedmem_qmi.h"
 #include "remote_filesystem_access_v01.h"
+
+#include <soc/qcom/subsystem_restart.h>
 
 #define RFSA_SERVICE_INSTANCE_NUM 1
 #define SHARED_ADDR_ENTRY_NAME_MAX_LEN 10
@@ -221,6 +223,7 @@ static int sharedmem_qmi_req_cb(struct qmi_handle *handle, void *conn_h,
 #define DEBUG_BUF_SIZE (2048)
 static char *debug_buffer;
 static u32 debug_data_size;
+static struct mutex dbg_buf_lock;	/* mutex for debug_buffer */
 
 static ssize_t debug_read(struct file *file, char __user *buf,
 			  size_t count, loff_t *file_pos)
@@ -276,21 +279,50 @@ static u32 fill_debug_info(char *buffer, u32 buffer_size)
 static int debug_open(struct inode *inode, struct file *file)
 {
 	u32 buffer_size;
-	if (debug_buffer != NULL)
+
+	mutex_lock(&dbg_buf_lock);
+	if (debug_buffer != NULL) {
+		mutex_unlock(&dbg_buf_lock);
 		return -EBUSY;
+	}
 	buffer_size = DEBUG_BUF_SIZE;
 	debug_buffer = kzalloc(buffer_size, GFP_KERNEL);
-	if (debug_buffer == NULL)
+	if (debug_buffer == NULL) {
+		mutex_unlock(&dbg_buf_lock);
 		return -ENOMEM;
+	}
 	debug_data_size = fill_debug_info(debug_buffer, buffer_size);
+	mutex_unlock(&dbg_buf_lock);
 	return 0;
 }
 
 static int debug_close(struct inode *inode, struct file *file)
 {
+	mutex_lock(&dbg_buf_lock);
 	kfree(debug_buffer);
 	debug_buffer = NULL;
 	debug_data_size = 0;
+	mutex_unlock(&dbg_buf_lock);
+	return 0;
+}
+
+static int status_open(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t status_read(struct file *file, char __user *buf,
+			  size_t count, loff_t *file_pos)
+{
+	int curr_status = subsys_shutdown_check();
+	pr_info("sys_shutdown_status: %d\n", curr_status);
+	return simple_read_from_buffer(buf, count, file_pos, &curr_status,
+					sizeof(curr_status));
+}
+
+static int status_close(struct inode *inode, struct file *file)
+{
 	return 0;
 }
 
@@ -298,6 +330,12 @@ static const struct file_operations debug_ops = {
 	.read = debug_read,
 	.open = debug_open,
 	.release = debug_close,
+};
+
+static const struct file_operations status_ops = {
+	.read = status_read,
+	.open = status_open,
+	.release = status_close,
 };
 
 static int rfsa_increment(void *data, u64 val)
@@ -321,6 +359,7 @@ static void debugfs_init(void)
 {
 	struct dentry *f_ent;
 
+	mutex_init(&dbg_buf_lock);
 	dir_ent = debugfs_create_dir("rmt_storage", NULL);
 	if (IS_ERR(dir_ent)) {
 		pr_err("Failed to create debug_fs directory\n");
@@ -344,11 +383,18 @@ static void debugfs_init(void)
 		pr_err("Failed to create debug_fs rmts file\n");
 		return;
 	}
+
+	f_ent = debugfs_create_file("status", 0440, dir_ent, NULL, &status_ops);
+	if (IS_ERR(f_ent)) {
+		pr_err("Failed to create status_debug_fs info file\n");
+		return;
+	}
 }
 
 static void debugfs_exit(void)
 {
 	debugfs_remove_recursive(dir_ent);
+	mutex_destroy(&dbg_buf_lock);
 }
 
 static void sharedmem_qmi_svc_recv_msg(struct work_struct *work)

@@ -18,7 +18,7 @@
 #include "msm_cci.h"
 
 DEFINE_MSM_MUTEX(msm_ois_mutex);
-/*#define MSM_OIS_DEBUG*/
+#define MSM_OIS_DEBUG
 #undef CDBG
 #ifdef MSM_OIS_DEBUG
 #define CDBG(fmt, args...) pr_err(fmt, ##args)
@@ -426,11 +426,13 @@ static long msm_ois_subdev_ioctl(struct v4l2_subdev *sd,
 			pr_err("o_ctrl->i2c_client.i2c_func_tbl NULL\n");
 			return -EINVAL;
 		} else {
+			mutex_lock(o_ctrl->ois_mutex);
 			rc = msm_ois_power_down(o_ctrl);
 			if (rc < 0) {
 				pr_err("%s:%d OIS Power down failed\n",
 					__func__, __LINE__);
 			}
+			mutex_unlock(o_ctrl->ois_mutex);
 			return msm_ois_close(sd, NULL);
 		}
 	default:

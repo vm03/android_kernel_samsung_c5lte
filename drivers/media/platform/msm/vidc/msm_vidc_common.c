@@ -156,11 +156,6 @@ static int msm_comm_get_mbs_per_sec(struct msm_vidc_inst *inst)
 	if (inst->operating_rate) {
 		fps = (inst->operating_rate >> 16) ?
 			inst->operating_rate >> 16 : 1;
-		/*
-		 * Check if operating rate is less than fps.
-		 * If Yes, then use fps to scale the clocks
-		*/
-		fps = fps > inst->prop.fps ? fps : inst->prop.fps;
 		return max(output_port_mbs, capture_port_mbs) * fps;
 	} else {
 		return max(output_port_mbs, capture_port_mbs) * inst->prop.fps;
@@ -2424,9 +2419,11 @@ static int msm_vidc_load_resources(int flipped_state,
 		dprintk(VIDC_ERR, "HW is overloaded, needed: %d max: %d\n",
 			num_mbs_per_sec, max_load_adj);
 		msm_vidc_print_running_insts(core);
+#if 0 /* Samsung skips the overloaded error return  */		
 		inst->state = MSM_VIDC_CORE_INVALID;
 		msm_comm_kill_session(inst);
 		return -EBUSY;
+#endif		
 	}
 
 	if (!is_thermal_permissible(core)) {
@@ -4226,7 +4223,9 @@ static int msm_vidc_load_supported(struct msm_vidc_inst *inst)
 				num_mbs_per_sec,
 				max_load_adj);
 			msm_vidc_print_running_insts(inst->core);
+#if 0 /* Samsung skips the overloaded error return  */			
 			return -EBUSY;
+#endif			
 		}
 	}
 	return 0;

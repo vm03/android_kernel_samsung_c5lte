@@ -406,6 +406,7 @@ struct diag_md_proc_info {
 	struct task_struct *socket_process;
 	struct task_struct *callback_process;
 	struct task_struct *mdlog_process;
+	struct task_struct *uart_process;
 };
 
 struct diag_feature_t {
@@ -503,6 +504,7 @@ struct diagchar_dev {
 	unsigned char *buf_feature_mask_update;
 	uint8_t hdlc_disabled;
 	struct mutex hdlc_disable_mutex;
+	struct mutex hdlc_recovery_mutex;
 	struct timer_list hdlc_reset_timer;
 	struct mutex diag_hdlc_mutex;
 	unsigned char *hdlc_buf;
@@ -534,6 +536,8 @@ struct diagchar_dev {
 	int logging_mode;
 	int mask_check;
 	struct diag_md_proc_info md_proc[DIAG_NUM_PROC];
+	/* pid for diag_mdlog(CP silent log app) */
+	struct pid *silent_log_pid;
 	/* Power related variables */
 	struct diag_ws_ref_t dci_ws;
 	struct diag_ws_ref_t md_ws;
