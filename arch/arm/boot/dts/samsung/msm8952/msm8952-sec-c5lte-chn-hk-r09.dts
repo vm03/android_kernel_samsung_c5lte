@@ -10469,7 +10469,7 @@
 
 		sound {
 			compatible = "qcom,msm8952-rt5659-audio-codec";
-			qcom,model = "msm8952-rt5659-snd-card";
+			qcom,model = "msm8952-snd-card";
 			reg = <0xc051000 0x4 0xc051004 0x4 0xc055000 0x4 0xc052000 0x4>;
 			reg-names = "csr_gp_io_mux_mic_ctl", "csr_gp_io_mux_spkr_ctl", "csr_gp_io_lpaif_pri_pcm_pri_mode_muxsel", "csr_gp_io_mux_quin_ctl";
 			qcom,codec_irq_n = <0x23 0x24 0x0>;
