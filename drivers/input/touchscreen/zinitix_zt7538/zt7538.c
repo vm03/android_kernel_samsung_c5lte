@@ -516,7 +516,7 @@ static int fb_notifier_callback(struct notifier_block *self,
 		blank = evdata->data;
 		if (*blank == FB_BLANK_UNBLANK)
 			zt7538_input_open (info->input_dev);
-		else if (*blank == FB_BLANK_POWERDOWN)
+		else
 			zt7538_input_close (info->input_dev);
 	}
 
