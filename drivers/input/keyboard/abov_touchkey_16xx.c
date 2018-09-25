@@ -1850,7 +1850,7 @@ static int fb_notifier_callback(struct notifier_block *self,
 		blank = evdata->data;
 		if (*blank == FB_BLANK_UNBLANK)
 			abov_tk_resume(&info->client->dev);
-		else if (*blank == FB_BLANK_POWERDOWN)
+		else
 			abov_tk_suspend(&info->client->dev);
 	}
 
