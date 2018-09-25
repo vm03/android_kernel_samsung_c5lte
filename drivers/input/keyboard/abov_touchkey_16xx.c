@@ -1845,13 +1845,15 @@ static int fb_notifier_callback(struct notifier_block *self,
 	struct abov_ft1604_info *info =
 		container_of(self, struct abov_ft1604_info, fb_notif);
 
-	if (evdata && evdata->data && event == FB_EVENT_BLANK &&
-			info && info->client) {
-		blank = evdata->data;
-		if (*blank == FB_BLANK_UNBLANK)
-			abov_tk_resume(&info->client->dev);
-		else
-			abov_tk_suspend(&info->client->dev);
+	if (!info->input_dev->disabled) {
+		if (evdata && evdata->data && event == FB_EVENT_BLANK &&
+				info && info->client) {
+			blank = evdata->data;
+			if (*blank == FB_BLANK_UNBLANK)
+				abov_tk_resume(&info->client->dev);
+			else
+				abov_tk_suspend(&info->client->dev);
+		}
 	}
 
 	return 0;
