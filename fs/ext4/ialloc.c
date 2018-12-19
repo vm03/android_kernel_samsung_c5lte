@@ -23,6 +23,7 @@
 #include <linux/bitops.h>
 #include <linux/blkdev.h>
 #include <asm/byteorder.h>
+#include <linux/ratelimit.h>
 
 #include "ext4.h"
 #include "ext4_jbd2.h"
@@ -318,6 +319,9 @@ out:
 		if (!fatal)
 			fatal = err;
 	} else {
+		/* for debugging, sangwoo2.lee */
+		print_bh(sb, bitmap_bh, 0, EXT4_BLOCK_SIZE(sb));
+		/* for debugging */
 		ext4_error(sb, "bit already cleared for inode %lu", ino);
 		if (gdp && !EXT4_MB_GRP_IBITMAP_CORRUPT(grp)) {
 			int count;
@@ -712,8 +716,12 @@ struct inode *__ext4_new_inode(handle_t *handle, struct inode *dir,
 got_group:
 	EXT4_I(dir)->i_last_alloc_group = group;
 	err = -ENOSPC;
-	if (ret2 == -1)
+	if (ret2 == -1) {
+		printk_ratelimited(KERN_INFO "Return ENOSPC : No free inode (%d/%u)\n",
+			(int) percpu_counter_read_positive(&sbi->s_freeinodes_counter),
+			le32_to_cpu(sbi->s_es->s_inodes_count));
 		goto out;
+	}
 
 	/*
 	 * Normally we will only go through one pass of this loop,
@@ -793,6 +801,9 @@ next_group:
 			group = 0;
 	}
 	err = -ENOSPC;
+	printk_ratelimited(KERN_INFO "Return ENOSPC : No free inode (%d/%u)\n",
+		(int) percpu_counter_read_positive(&sbi->s_freeinodes_counter),
+		le32_to_cpu(sbi->s_es->s_inodes_count));
 	goto out;
 
 got:
@@ -1043,7 +1054,7 @@ struct inode *ext4_orphan_get(struct super_block *sb, unsigned long ino)
 	if (!ext4_test_bit(bit, bitmap_bh->b_data))
 		goto bad_orphan;
 
-	inode = ext4_iget(sb, ino);
+	inode = ext4_iget(sb, ino, EXT4_IGET_NORMAL);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		ext4_error(sb, "couldn't read orphan inode %lu (err %d)",
