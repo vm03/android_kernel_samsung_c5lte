@@ -1474,9 +1474,9 @@ static int qcedev_check_cipher_params(struct qcedev_cipher_op_req *req,
 		total = req->byteoffset;
 		for (i = 0; i < req->entries; i++) {
 			if (total > U32_MAX - req->vbuf.src[i].len) {
-				pr_err("%s:Integer overflow on total src len\n",
-					__func__);
-				goto error;
+			pr_err("%s:Integer overflow on total src len\n",
+				__func__);
+			goto error;
 			}
 			total += req->vbuf.src[i].len;
 		}
@@ -1669,7 +1669,6 @@ long qcedev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	case QCEDEV_IOCTL_SHA_INIT_REQ:
 		{
 		struct scatterlist sg_src;
-
 		if (copy_from_user(&qcedev_areq.sha_op_req,
 					(void __user *)arg,
 					sizeof(struct qcedev_sha_op_req)))
@@ -1698,7 +1697,6 @@ long qcedev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	case QCEDEV_IOCTL_SHA_UPDATE_REQ:
 		{
 		struct scatterlist sg_src;
-
 		if (copy_from_user(&qcedev_areq.sha_op_req,
 					(void __user *)arg,
 					sizeof(struct qcedev_sha_op_req)))
@@ -1728,7 +1726,6 @@ long qcedev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 				return err;
 			}
 		}
-
 		if (handle->sha_ctxt.diglen > QCEDEV_MAX_SHA_DIGEST) {
 			pr_err("Invalid sha_ctxt.diglen %d\n",
 					handle->sha_ctxt.diglen);
@@ -1787,7 +1784,6 @@ long qcedev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	case QCEDEV_IOCTL_GET_SHA_REQ:
 		{
 		struct scatterlist sg_src;
-
 		if (copy_from_user(&qcedev_areq.sha_op_req,
 					(void __user *)arg,
 					sizeof(struct qcedev_sha_op_req)))
@@ -2131,8 +2127,9 @@ static ssize_t _debug_stats_read(struct file *file, char __user *buf,
 	len = _disp_stats(qcedev);
 
 	if (len <= count)
-		rc = simple_read_from_buffer((void __user *) buf, len,
+      rc = simple_read_from_buffer((void __user *) buf, len,
 			ppos, (void *) _debug_read_buf, len);
+
 	return rc;
 }
 

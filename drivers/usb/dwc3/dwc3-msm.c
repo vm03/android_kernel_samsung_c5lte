@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, 2018 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -210,7 +210,6 @@ struct dwc3_msm {
 	struct msm_bus_scale_pdata	*bus_scale_table;
 	struct power_supply	usb_psy;
 	struct power_supply	*ext_vbus_psy;
-	enum power_supply_type	usb_supply_type;
 	unsigned int		online;
 	unsigned int		scope;
 	unsigned int		voltage_max;
@@ -709,14 +708,14 @@ static int dwc3_msm_ep_queue(struct usb_ep *ep,
 
 	if (!dep->endpoint.desc) {
 		dev_err(mdwc->dev,
-			"%s: trying to queue request %pK to disabled ep %s\n",
+			"%s: trying to queue request %p to disabled ep %s\n",
 			__func__, request, ep->name);
 		return -EPERM;
 	}
 
 	if (dep->number == 0 || dep->number == 1) {
 		dev_err(mdwc->dev,
-			"%s: trying to queue dbm request %pK to control ep %s\n",
+			"%s: trying to queue dbm request %p to control ep %s\n",
 			__func__, request, ep->name);
 		return -EPERM;
 	}
@@ -725,7 +724,7 @@ static int dwc3_msm_ep_queue(struct usb_ep *ep,
 	if (dep->busy_slot != dep->free_slot || !list_empty(&dep->request_list)
 					 || !list_empty(&dep->req_queued)) {
 		dev_err(mdwc->dev,
-			"%s: trying to queue dbm request %pK tp ep %s\n",
+			"%s: trying to queue dbm request %p tp ep %s\n",
 			__func__, request, ep->name);
 		return -EPERM;
 	} else {
@@ -770,7 +769,7 @@ static int dwc3_msm_ep_queue(struct usb_ep *ep,
 		return ret;
 	}
 
-	dev_vdbg(dwc->dev, "%s: queing request %pK to ep %s length %d\n",
+	dev_vdbg(dwc->dev, "%s: queing request %p to ep %s length %d\n",
 			__func__, request, ep->name, request->length);
 	size = dwc3_msm_read_reg(mdwc->base, DWC3_GEVNTSIZ(0));
 	dbm_event_buffer_config(mdwc->dbm,
@@ -987,7 +986,7 @@ EXPORT_SYMBOL(msm_dwc3_restart_usb_session);
  */
 int msm_register_usb_ext_notification(struct usb_ext_notification *info)
 {
-	pr_debug("%s usb_ext: %pK\n", __func__, info);
+	pr_debug("%s usb_ext: %p\n", __func__, info);
 
 	if (info) {
 		if (usb_ext) {
@@ -1962,6 +1961,11 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 			disable_irq_wake(mdwc->hs_phy_irq);
 			mdwc->lpm_flags &= ~MDWC3_ASYNC_IRQ_WAKE_CAPABILITY;
 	}
+	/* it must DCP disconnect, re-enable HS_PHY wakeup IRQ */
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
+	if ((mdwc->hs_phy_irq && dcp) || !mdwc->vbus_active) // add SAMSUNG
+		enable_irq_wake(mdwc->hs_phy_irq);
+#endif
 
 	dev_info(mdwc->dev, "DWC3 exited from low power mode\n");
 
@@ -2310,9 +2314,6 @@ static int dwc3_msm_power_get_property_usb(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = mdwc->online;
 		break;
-	case POWER_SUPPLY_PROP_REAL_TYPE:
-		val->intval = mdwc->usb_supply_type;
-		break;
 	case POWER_SUPPLY_PROP_TYPE:
 		val->intval = psy->type;
 		break;
@@ -2390,22 +2391,10 @@ static int dwc3_msm_power_set_property_usb(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		mdwc->current_max = val->intval;
 		break;
-	case POWER_SUPPLY_PROP_REAL_TYPE:
-		mdwc->usb_supply_type = val->intval;
-		/*
-		 * Update TYPE property to DCP for HVDCP/HVDCP3 charger types
-		 * so that they can be recongized as AC chargers by healthd.
-		 * Don't report UNKNOWN charger type to prevent healthd missing
-		 * detecting this power_supply status change.
-		 */
-		if (mdwc->usb_supply_type == POWER_SUPPLY_TYPE_USB_HVDCP_3
-			|| mdwc->usb_supply_type == POWER_SUPPLY_TYPE_USB_HVDCP)
-			psy->type = POWER_SUPPLY_TYPE_USB_DCP;
-		else if (mdwc->usb_supply_type == POWER_SUPPLY_TYPE_UNKNOWN)
-			psy->type = POWER_SUPPLY_TYPE_USB;
-		else
-			psy->type = mdwc->usb_supply_type;
-		switch (mdwc->usb_supply_type) {
+	case POWER_SUPPLY_PROP_TYPE:
+		psy->type = val->intval;
+
+		switch (psy->type) {
 		case POWER_SUPPLY_TYPE_USB:
 			mdwc->charger.chg_type = DWC3_SDP_CHARGER;
 			break;
@@ -2478,7 +2467,6 @@ dwc3_msm_property_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_USB_OTG:
 	case POWER_SUPPLY_PROP_PRESENT:
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
-	case POWER_SUPPLY_PROP_REAL_TYPE:
 		return 1;
 	default:
 		break;
@@ -2503,7 +2491,6 @@ static enum power_supply_property dwc3_msm_pm_power_props_usb[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_USB_OTG,
-	POWER_SUPPLY_PROP_REAL_TYPE,
 };
 
 static void dwc3_init_adc_work(struct work_struct *w);
@@ -2902,6 +2889,9 @@ unreg_chrdev:
 	return ret;
 }
 
+#ifdef CONFIG_USB_NOTIFIER
+#include "dwc3-sec.c"
+#endif
 static int dwc3_msm_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node, *dwc3_node;
@@ -3273,8 +3263,8 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 
 	/* usb_psy required only for vbus_notifications */
 	if (!host_mode) {
-		mdwc->usb_psy.name = "usb";
-		mdwc->usb_psy.type = POWER_SUPPLY_TYPE_USB;
+		mdwc->usb_psy.name = "dwc-usb";
+		mdwc->usb_psy.type = POWER_SUPPLY_TYPE_UNKNOWN;
 		mdwc->usb_psy.supplied_to = dwc3_msm_pm_power_supplied_to;
 		mdwc->usb_psy.num_supplicants = ARRAY_SIZE(
 						dwc3_msm_pm_power_supplied_to);
@@ -3357,6 +3347,10 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		mdwc->otg_xceiv = dwc->dotg->otg.phy;
 	/* Register with OTG if present */
 	if (mdwc->otg_xceiv) {
+#ifdef CONFIG_USB_NOTIFIER
+		pr_info("dwc3-msm: sec_otg_init is called.\n");
+		sec_otg_init(mdwc, mdwc->otg_xceiv);
+#endif
 		/* Skip charger detection for simulator targets */
 		if (!mdwc->charger.skip_chg_detect) {
 			mdwc->charger.start_detection = dwc3_start_chg_det;
@@ -3415,6 +3409,10 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 				PWR_EVNT_POWERDOWN_IN_P3_MASK, 1);
 
 	enable_irq(mdwc->hs_phy_irq);
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
+		if (dcp || !mdwc->vbus_active) // add SAMSUNG
+			disable_irq_wake(mdwc->hs_phy_irq);
+#endif
 
 	/* Update initial ID state */
 	if (mdwc->pmic_id_irq) {

@@ -1,8 +1,6 @@
 #ifndef __UAPI_LINUX_MSM_CAMSENSOR_SDK_H
 #define __UAPI_LINUX_MSM_CAMSENSOR_SDK_H
 
-#include <linux/videodev2.h>
-
 #define KVERSION 0x1
 
 #define MAX_POWER_CONFIG      12
@@ -169,6 +167,7 @@ enum actuator_type {
 	ACTUATOR_PIEZO,
 	ACTUATOR_HVCM,
 	ACTUATOR_BIVCM,
+	ACTUATOR_HALL_EFFECT,
 };
 
 enum msm_flash_driver_type {
@@ -184,7 +183,49 @@ enum msm_flash_cfg_type_t {
 	CFG_FLASH_OFF,
 	CFG_FLASH_LOW,
 	CFG_FLASH_HIGH,
+	CFG_FLASH_TORCH,
 };
+
+#if defined (CONFIG_CAMERA_SYSFS_V2)
+enum msm_camera_cam_info_isp {
+	CAM_INFO_ISP_TYPE_INTERNAL = 0,
+	CAM_INFO_ISP_TYPE_EXTERNAL,
+	CAM_INFO_ISP_TYPE_SOC,
+};
+
+enum msm_camera_cam_info_cal_mem {
+	CAM_INFO_CAL_MEM_TYPE_NONE = 0,
+	CAM_INFO_CAL_MEM_TYPE_FROM,
+	CAM_INFO_CAL_MEM_TYPE_EEPROM,
+	CAM_INFO_CAL_MEM_TYPE_OTP,
+};
+
+enum msm_camera_cam_info_read_ver {
+	CAM_INFO_READ_VER_SYSFS = 0,
+	CAM_INFO_READ_VER_CAMON,
+};
+
+enum msm_camera_cam_info_core_voltage {
+	CAM_INFO_CORE_VOLT_NONE = 0,
+	CAM_INFO_CORE_VOLT_USE,
+};
+
+enum msm_camera_cam_info_upgrade {
+	CAM_INFO_FW_UPGRADE_NONE = 0,
+	CAM_INFO_FW_UPGRADE_SYSFS,
+	CAM_INFO_FW_UPGRADE_CAMON,
+};
+
+enum msm_camera_cam_info_companion {
+	CAM_INFO_COMPANION_NONE = 0,
+	CAM_INFO_COMPANION_USE,
+};
+
+enum msm_camera_cam_info_ois {
+	CAM_INFO_OIS_NONE = 0,
+	CAM_INFO_OIS_USE,
+};
+#endif
 
 enum msm_sensor_output_format_t {
 	MSM_SENSOR_BAYER,
@@ -373,9 +414,9 @@ struct region_params_t {
 
 struct reg_settings_t {
 	unsigned short reg_addr;
-	enum msm_camera_i2c_reg_addr_type addr_type;
+	enum msm_actuator_addr_type addr_type;
 	unsigned short reg_data;
-	enum msm_camera_i2c_data_type data_type;
+	enum msm_actuator_data_type data_type;
 	enum msm_actuator_i2c_operation i2c_operation;
 	unsigned int delay;
 };
@@ -387,5 +428,4 @@ struct msm_camera_i2c_reg_setting_array {
 	enum msm_camera_i2c_data_type data_type;
 	unsigned short delay;
 };
-
-#endif
+#endif /* __LINUX_MSM_CAM_SENSOR_H */

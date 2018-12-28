@@ -26,3 +26,7 @@
 	status = "ok";
 };
 
+
+&pm8950_gpios {
+	status = "okay";
+};

@@ -1547,9 +1547,10 @@ static int quat_mi2s_clk_ctl(struct snd_pcm_substream *substream, bool enable)
 
 	if (enable) {
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			mi2s_rx_clk.clk_val2 = Q6AFE_LPASS_OSR_CLK_12_P288_MHZ;
+                      mi2s_rx_clk.clk_val2 = Q6AFE_LPASS_OSR_CLK_12_P288_MHZ;
 			if ((mi2s_rx_bit_format == SNDRV_PCM_FORMAT_S24_LE) ||
-                            (mi2s_rx_bit_format == SNDRV_PCM_FORMAT_S24_3LE))
+				(mi2s_rx_bit_format ==
+						SNDRV_PCM_FORMAT_S24_3LE))
 				mi2s_rx_clk.clk_val1 =
 					Q6AFE_LPASS_IBIT_CLK_3_P072_MHZ;
 			else
@@ -1601,8 +1602,10 @@ static int quin_mi2s_sclk_ctl(struct snd_pcm_substream *substream, bool enable)
 
 	if (enable) {
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			mi2s_rx_clk.clk_val2 = Q6AFE_LPASS_OSR_CLK_12_P288_MHZ;
-			if (mi2s_rx_bit_format == SNDRV_PCM_FORMAT_S24_LE)
+                      mi2s_rx_clk.clk_val2 = Q6AFE_LPASS_OSR_CLK_12_P288_MHZ;
+                      if ((mi2s_rx_bit_format == SNDRV_PCM_FORMAT_S24_LE) ||
+				(mi2s_rx_bit_format ==
+					SNDRV_PCM_FORMAT_S24_3LE))
 				mi2s_rx_clk.clk_val1 =
 					Q6AFE_LPASS_IBIT_CLK_3_P072_MHZ;
 			else

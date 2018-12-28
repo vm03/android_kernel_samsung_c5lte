@@ -56,7 +56,27 @@
 	memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
-
+    		ranges;
+		ramoops@40400000 {
+ 			linux,reserve-contiguous-region;
+ 		 	linux,reserve-region;
+ 			linux,remove-completely;
+ 			reg = <0x0 0x40400000 0x0 0x0100000>;
+ 			compatible = "ramoops";
+			record-size = <0x40000>;
+			console-size = <0x40000>;
+			ftrace-size = <0x40000>;
+			pmsg-size = <0x40000>;
+		};
+		
+		ss_plog@40000000 {
+			compatible = "ss_plog";
+			linux,reserve-contiguous-region;
+			linux,reserve-region;
+			linux,remove-completely;
+			reg = <0x0 0x40000000 0x0 0x00400000>;
+		};
+		
 		modem_mem: modem_region@0 {
 			linux,reserve-contiguous-region;
 			linux,reserve-region;
@@ -771,9 +791,9 @@
 		qcom,msm-bus,num-cases = <3>;
 		qcom,msm-bus,num-paths = <1>;
 		qcom,msm-bus,vectors-KBps =
-		<90 512 0 0>,              /* No vote (ab=0 Mbps, ib=0 Mbps – NO BIMC vote) */
-		<90 512 100000 800000>,    /* SVS  - (ab=100Mbps, ib=800Mbps – 50MHz BIMC freq) */
-		<90 512 100000 1200000>;   /* PERF - (ab=100Mbps, ib=1200Mbps – 75MHz BIMC freq) */
+		<90 512 0 0>,              /* No vote (ab=0 Mbps, ib=0 Mbps ï¿½ NO BIMC vote) */
+		<90 512 100000 800000>,    /* SVS  - (ab=100Mbps, ib=800Mbps ï¿½ 50MHz BIMC freq) */
+		<90 512 100000 1200000>;   /* PERF - (ab=100Mbps, ib=1200Mbps ï¿½ 75MHz BIMC freq) */
 		qcom,bus-vector-names = "MIN", "SVS", "PERF";
 		qcom,tethered-flow-control;
 	};
@@ -1169,7 +1189,10 @@
 		hsusb_vdd_dig-supply = <&pm8950_l2>;
 		HSUSB_1p8-supply = <&pm8950_l7>;
 		HSUSB_3p3-supply = <&pm8950_l13>;
-		vbus_otg-supply = <&smbcharger_charger_otg>;
+
+		//remove redundant regulator of qcom,pmi8950@2,by QC guide:case 02645142,case 02917190.
+		//vbus_otg-supply = <&smbcharger_charger_otg>;
+
 		qcom,vdd-voltage-level = <0 1200000 1200000>;
 
 		qcom,hsusb-otg-phy-init-seq =
@@ -2349,6 +2372,12 @@
 				"iface_clk", "bus_clk";
 		qcom,ce-opp-freq = <100000000>;
 	};
+
+	cpu-pmu {
+                compatible = "arm,armv8-pmuv3";
+                qcom,irq-is-percpu;
+                interrupts = <1 7 0xff00>;
+        };
 };
 
 &gdsc_venus {

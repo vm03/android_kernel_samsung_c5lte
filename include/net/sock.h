@@ -1,3 +1,4 @@
+/* Copyright (c) 2015 Samsung Electronics Co., Ltd. */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -37,6 +38,15 @@
  *		as published by the Free Software Foundation; either version
  *		2 of the License, or (at your option) any later version.
  */
+/*
+ *  Changes:
+ *  KwnagHyun Kim <kh0304.kim@samsung.com> 2015/07/08
+ *  Baesung Park  <baesung.park@samsung.com> 2015/07/08
+ *  Vignesh Saravanaperumal <vignesh1.s@samsung.com> 2015/07/08
+ *    Add codes to share UID/PID information
+ *
+ */
+
 #ifndef _SOCK_H
 #define _SOCK_H
 
@@ -189,6 +199,12 @@ struct sock_common {
 		struct hlist_nulls_node skc_portaddr_node;
 	};
 	struct proto		*skc_prot;
+
+#if IS_ENABLED(CONFIG_IPV6)
+	struct in6_addr		skc_v6_daddr;
+	struct in6_addr		skc_v6_rcv_saddr;
+#endif
+
 #ifdef CONFIG_NET_NS
 	struct net	 	*skc_net;
 #endif
@@ -306,6 +322,8 @@ struct sock {
 #define sk_bind_node		__sk_common.skc_bind_node
 #define sk_prot			__sk_common.skc_prot
 #define sk_net			__sk_common.skc_net
+#define sk_v6_daddr		__sk_common.skc_v6_daddr
+#define sk_v6_rcv_saddr	__sk_common.skc_v6_rcv_saddr
 	socket_lock_t		sk_lock;
 	struct sk_buff_head	sk_receive_queue;
 	/*
@@ -353,6 +371,7 @@ struct sock {
 				sk_no_check  : 2,
 				sk_userlocks : 4,
 				sk_protocol  : 8,
+#define SK_PROTOCOL_MAX U8_MAX
 				sk_type      : 16;
 	kmemcheck_bitfield_end(flags);
 	int			sk_wmem_queued;
@@ -396,6 +415,16 @@ struct sock {
 	kuid_t			sk_uid;
 	u32			sk_classid;
 	struct cg_proto		*sk_cgrp;
+	/* START_OF_KNOX_NPA */
+	uid_t           knox_uid;
+	pid_t           knox_pid;
+	uid_t	    	knox_dns_uid;
+	__be32	    	sk_udp_daddr_v6[4];
+	__be32	    	sk_udp_saddr_v6[4];
+	__be16          sk_udp_dport;
+	__be16          sk_udp_sport;
+	char 			domain_name[255];
+	/* END_OF_KNOX_NPA */
 	void			(*sk_state_change)(struct sock *sk);
 	void			(*sk_data_ready)(struct sock *sk, int bytes);
 	void			(*sk_write_space)(struct sock *sk);

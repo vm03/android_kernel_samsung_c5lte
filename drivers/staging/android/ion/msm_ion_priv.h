@@ -2,7 +2,7 @@
  * drivers/gpu/ion/ion_priv.h
  *
  * Copyright (C) 2011 Google, Inc.
- * Copyright (c) 2013-2014, 2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2014, 2017 The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -130,5 +130,7 @@ int get_secure_vmid(unsigned long flags);
 struct sg_table *ion_create_chunked_sg_table(phys_addr_t buffer_base,
 					size_t chunk_size, size_t total_size);
 
+void show_ion_usage_simple(struct ion_device *dev, unsigned long is_simple,
+				struct seq_file *s);
 void show_ion_usage(struct ion_device *dev);
 #endif /* _MSM_ION_PRIV_H */

@@ -59,6 +59,10 @@ struct dm_verity {
 
 	/* starting blocks for each tree level. 0 is the lowest level. */
 	sector_t hash_level_block[DM_VERITY_MAX_LEVELS];
+	
+	#ifdef DMV_ALTA
+	u8 *verity_bitmap; /* bitmap for skipping verification on blocks */
+	#endif
 
 	struct dm_verity_fec *fec;	/* forward error correction */
 };

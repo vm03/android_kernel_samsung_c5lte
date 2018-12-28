@@ -1,7 +1,7 @@
 /*
  * MDSS MDP Interface (used by framebuffer core)
  *
- * Copyright (c) 2007-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2007-2016, The Linux Foundation. All rights reserved.
  * Copyright (C) 2007 Google Incorporated
  *
  * This software is licensed under the terms of the GNU General Public
@@ -102,7 +102,7 @@ static struct mdss_panel_intf pan_types[] = {
 	{"edp", MDSS_PANEL_INTF_EDP},
 	{"hdmi", MDSS_PANEL_INTF_HDMI},
 };
-static char mdss_mdp_panel[MDSS_MAX_PANEL_LEN];
+char mdss_mdp_panel[MDSS_MAX_PANEL_LEN];
 
 struct mdss_iommu_map_type mdss_iommu_map[MDSS_IOMMU_MAX_DOMAIN] = {
 	[MDSS_IOMMU_DOMAIN_UNSECURE] = {
@@ -837,6 +837,8 @@ static int mdss_mdp_idle_pc_restore(void)
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
 	int rc = 0;
 
+	MDSS_XLOG(0x111);
+
 	mutex_lock(&mdp_fs_idle_pc_lock);
 	if (!mdata->idle_pc) {
 		pr_debug("no idle pc, no need to restore\n");
@@ -856,6 +858,9 @@ static int mdss_mdp_idle_pc_restore(void)
 
 end:
 	mutex_unlock(&mdp_fs_idle_pc_lock);
+
+	MDSS_XLOG(0x222);
+
 	return rc;
 }
 
@@ -1014,17 +1019,34 @@ static int mdss_mdp_gdsc_notifier_call(struct notifier_block *self,
 
 	mdata = container_of(self, struct mdss_data_type, gdsc_cb);
 
-	if (event & REGULATOR_EVENT_ENABLE) {
-		/*
-		 * As SMMU in low tier targets is not power collapsible,
-		 * hence we don't need to restore sec configuration.
-		 */
-		if (!mdss_mdp_req_init_restore_cfg(mdata))
-			__mdss_restore_sec_cfg(mdata);
-	}
+	if (event & REGULATOR_EVENT_ENABLE)
+		__mdss_restore_sec_cfg(mdata);
 
 	return NOTIFY_OK;
 }
+
+static void __halt_vbif_xin(void) 
+{ 
+	struct mdss_data_type *mdata2 = mdss_mdp_get_mdata(); 
+	pr_err("Halting VBIF_IN\n"); 
+	MDSS_VBIF_WRITE(mdata2, MMSS_VBIF_AXI_HALT_CTRL0, 0xFFFFFFFF, false); 
+ 
+} 
+ 
+static void __dump_vbif_state(void) 
+{ 
+	struct mdss_data_type *mdata3 = mdss_mdp_get_mdata(); 
+	unsigned int reg_val; 
+ 
+	reg_val = MDSS_VBIF_READ(mdata3, MMSS_VBIF_XIN_HALT_CTRL0,false); 
+	pr_err("Value of VBIF_XIN_HALT_CTRL0 = 0x%x\n", reg_val); 
+	reg_val = MDSS_VBIF_READ(mdata3, MMSS_VBIF_XIN_HALT_CTRL1,false); 
+	pr_err("Value of VBIF_XIN_HALT_CTRL1 = 0x%x\n", reg_val); 
+	reg_val = MDSS_VBIF_READ(mdata3, MMSS_VBIF_AXI_HALT_CTRL0,false); 
+	pr_err("Value of VBIF_AXI_HALT_CTRL0 = 0x%x\n", reg_val); 
+	reg_val = MDSS_VBIF_READ(mdata3, MMSS_VBIF_AXI_HALT_CTRL1,false); 
+	pr_err("Value of VBIF_AXI_HALT_CTRL1 = 0x%x\n", reg_val); 
+} 
 
 static int mdss_iommu_tlb_timeout_notify(struct notifier_block *self,
 		unsigned long action, void *dev)
@@ -1036,13 +1058,21 @@ static int mdss_iommu_tlb_timeout_notify(struct notifier_block *self,
 
 	if (strcmp(client_name, "mdp_ns") && strcmp(client_name, "mdp_secure"))
 		return 0;
-
+	
+	pr_err("mdss tlb timeout notifier: client name is %s", client_name);
+	
 	switch (action) {
 	case TLB_SYNC_TIMEOUT:
-		pr_err("cb for TLB SYNC timeout. Dumping XLOG's\n");
-		MDSS_XLOG_TOUT_HANDLER_FATAL_DUMP("vbif", "mdp",
-					"mdp_dbg_bus", "atomic_context");
-		break;
+			pr_err("cb for TLB SYNC timeout. Dumping XLOG's\n");
+			mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON);
+			__dump_vbif_state();
+			__halt_vbif_xin();
+			usleep(20000);
+			__dump_vbif_state();
+			mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF);
+			MDSS_XLOG_TOUT_HANDLER_FATAL_DUMP("vbif", "mdp",
+			"mdp_dbg_bus", "atomic_context");
+			break;
 	}
 
 	return 0;
@@ -2282,7 +2312,7 @@ static int mdss_mdp_parse_dt_pipe(struct platform_device *pdev)
 	if (!mdata->vig_pipes) {
 		pr_err("no mem for vig_pipes: kzalloc fail\n");
 		rc = -ENOMEM;
-		goto vig_alloc_fail;
+		goto parse_fail;
 	}
 
 	mdata->rgb_pipes = devm_kzalloc(&mdata->pdev->dev,
@@ -2290,7 +2320,7 @@ static int mdss_mdp_parse_dt_pipe(struct platform_device *pdev)
 	if (!mdata->rgb_pipes) {
 		pr_err("no mem for rgb_pipes: kzalloc fail\n");
 		rc = -ENOMEM;
-		goto rgb_alloc_fail;
+		goto parse_fail;
 	}
 
 	if (mdata->ndma_pipes) {
@@ -2300,7 +2330,7 @@ static int mdss_mdp_parse_dt_pipe(struct platform_device *pdev)
 		if (!mdata->dma_pipes) {
 			pr_err("no mem for dma_pipes: kzalloc fail\n");
 			rc = -ENOMEM;
-			goto dma_alloc_fail;
+			goto parse_fail;
 		}
 	}
 
@@ -2477,7 +2507,7 @@ static int mdss_mdp_parse_dt_pipe(struct platform_device *pdev)
 		if (!mdata->cursor_pipes) {
 			pr_err("no mem for cursor_pipes: kzalloc fail\n");
 			rc = -ENOMEM;
-			goto cursor_alloc_fail;
+			goto parse_fail;
 		}
 		rc = mdss_mdp_parse_dt_handler(pdev,
 			"qcom,mdss-pipe-cursor-off", offsets,
@@ -2508,18 +2538,8 @@ static int mdss_mdp_parse_dt_pipe(struct platform_device *pdev)
 		pr_info("dedicated vp cursors detected, num=%d\n",
 			mdata->ncursor_pipes);
 	}
-	goto parse_done;
 
 parse_fail:
-	kfree(mdata->cursor_pipes);
-cursor_alloc_fail:
-	kfree(mdata->dma_pipes);
-dma_alloc_fail:
-	kfree(mdata->rgb_pipes);
-rgb_alloc_fail:
-	kfree(mdata->vig_pipes);
-parse_done:
-vig_alloc_fail:
 	kfree(xin_id);
 xin_alloc_fail:
 	kfree(ftch_id);
@@ -3792,6 +3812,8 @@ static void mdss_mdp_footswitch_ctrl(struct mdss_data_type *mdata, int on)
 	int active_cnt = 0;
 	bool disable_cx = false;
 
+	MDSS_XLOG(on, 0x111);
+
 	if (!mdata->fs)
 		return;
 
@@ -3838,6 +3860,7 @@ static void mdss_mdp_footswitch_ctrl(struct mdss_data_type *mdata, int on)
 		}
 		mdata->fs_ena = false;
 	}
+	MDSS_XLOG(on, 0x222);
 }
 
 int mdss_mdp_secure_display_ctrl(unsigned int enable)
@@ -3857,7 +3880,7 @@ int mdss_mdp_secure_display_ctrl(unsigned int enable)
 			&request, sizeof(request), &resp, sizeof(resp));
 	} else {
 		ret = scm_call2(SCM_SIP_FNID(SCM_SVC_MP,
-				MEM_PROTECT_SD_CTRL), &desc);
+				MEM_PROTECT_SD_CTRL_FLAT), &desc);
 		resp = desc.ret[0];
 	}
 

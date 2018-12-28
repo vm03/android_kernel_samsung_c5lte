@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -390,6 +390,12 @@ static void diag_close_logging_process(int pid)
 				 "setting mdlog proc %d to NULL, proc: %d",
 				 driver->md_proc[i].pid, i);
 		}
+		if (logging_proc->uart_process) {
+			logging_proc->uart_process = NULL;
+			DIAG_LOG(DIAG_DEBUG_USERSPACE,
+				"setting uart proc %d to NULL, proc: %d",
+				driver->md_proc[i].pid, i);
+		}
 		diag_update_proc_vote(DIAG_PROC_MEMORY_DEVICE, VOTE_DOWN, i);
 	}
 	mutex_unlock(&driver->diagchar_mutex);
@@ -451,6 +457,11 @@ static int diag_remove_client_entry(struct file *file)
 
 	if (!driver)
 		return -ENOMEM;
+
+	if(driver->silent_log_pid) {
+		put_pid(driver->silent_log_pid);
+		driver->silent_log_pid = NULL;
+	}
 
 	mutex_lock(&driver->diag_file_mutex);
 	if (!file) {
@@ -625,8 +636,10 @@ static void diag_cmd_invalidate_polling(int change_flag)
 	struct diag_cmd_reg_t *item = NULL;
 
 	if (change_flag == DIAG_CMD_ADD) {
-		if (driver->polling_reg_flag)
-			return;
+		if (driver->polling_reg_flag) {
+			DIAG_LOG(DIAG_DEBUG_PERIPHERALS," exiting function %s",__func__);
+ 			return;
+		}
 	}
 
 	driver->polling_reg_flag = 0;
@@ -1277,6 +1290,13 @@ static int diag_switch_logging(const int requested_mode)
 				 driver->md_proc[i].pid, i);
 			}
 			break;
+		case UART_MODE:
+			driver->md_proc[i].pid = current->tgid;
+			driver->md_proc[i].uart_process = current;
+			DIAG_LOG(DIAG_DEBUG_USERSPACE,
+				"setting uart process to %d, proc: %d",
+				driver->md_proc[i].pid, i);
+			break;
 		}
 	}
 fail:
@@ -1748,6 +1768,10 @@ long diagchar_compat_ioctl(struct file *filp,
 		if (copy_from_user((void *)&req_logging_mode,
 					(void __user *)ioarg, sizeof(int)))
 			return -EFAULT;
+		/*
+		 * Get a pid of diag_mdlog(app) and save it.
+		 */
+		driver->silent_log_pid = get_pid(task_pid(current));
 		result = diag_switch_logging(req_logging_mode);
 		break;
 	case DIAG_IOCTL_REMOTE_DEV:
@@ -1837,7 +1861,9 @@ long diagchar_ioctl(struct file *filp,
 		mutex_unlock(&driver->dci_mutex);
 		break;
 	case DIAG_IOCTL_DCI_EVENT_STATUS:
+		mutex_lock(&driver->dci_mutex);
 		result = diag_ioctl_dci_event_status(ioarg);
+		mutex_unlock(&driver->dci_mutex);
 		break;
 	case DIAG_IOCTL_DCI_CLEAR_LOGS:
 		mutex_lock(&driver->dci_mutex);
@@ -1866,6 +1892,10 @@ long diagchar_ioctl(struct file *filp,
 		if (copy_from_user((void *)&req_logging_mode,
 					(void __user *)ioarg, sizeof(int)))
 			return -EFAULT;
+		/*
+		 * Get a pid of diag_mdlog(app) and save it.
+		 */
+		driver->silent_log_pid = get_pid(task_pid(current));
 		result = diag_switch_logging(req_logging_mode);
 		break;
 	case DIAG_IOCTL_REMOTE_DEV:
@@ -2400,6 +2430,25 @@ static int diag_user_process_apps_data(const char __user *buf, int len,
 
 	return 0;
 }
+/*
+ * silent_log_panic_handler()
+ * If the silent log is enabled for CP and CP is in
+ * trouble, diag_mdlog (APP) should be terminated before
+ * a panic occurs, since it can flush logs to SD card
+ * when it is over. So, please use this function to termimate it.
+ */
+int silent_log_panic_handler(void)
+{
+	int ret = 0;
+	if(driver->silent_log_pid) {
+		pr_info("%s: killing slient log...\n", __func__);
+		kill_pid(driver->silent_log_pid, SIGTERM, 1);
+		driver->silent_log_pid = NULL;
+		ret = 1;
+	}
+	return ret;
+}
+EXPORT_SYMBOL(silent_log_panic_handler);
 
 static int check_data_ready(int index)
 {
@@ -3008,6 +3057,7 @@ static int __init diagchar_init(void)
 		driver->md_proc[i].callback_process = NULL;
 		driver->md_proc[i].socket_process = NULL;
 		driver->md_proc[i].mdlog_process = NULL;
+		driver->md_proc[i].uart_process = NULL;
 	}
 	driver->mask_check = 0;
 	driver->in_busy_pktdata = 0;

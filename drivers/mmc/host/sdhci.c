@@ -3152,12 +3152,12 @@ static void sdhci_show_adma_error(struct sdhci_host *host)
 
 		if (host->flags & SDHCI_USE_ADMA_64BIT) {
 			__le64 *dma = (__le64 *)(desc + 4);
-			pr_info("%s: %pK: DMA %llx, LEN 0x%04x, Attr=0x%02x\n",
+			pr_info("%s: %p: DMA %llx, LEN 0x%04x, Attr=0x%02x\n",
 			    name, desc, (long long)le64_to_cpu(*dma),
 			    le16_to_cpu(*len), attr);
 		} else {
 			__le32 *dma = (__le32 *)(desc + 4);
-			pr_info("%s: %pK: DMA 0x%08x, LEN 0x%04x, Attr=0x%02x\n",
+			pr_info("%s: %p: DMA 0x%08x, LEN 0x%04x, Attr=0x%02x\n",
 			    name, desc, le32_to_cpu(*dma), le16_to_cpu(*len),
 			    attr);
 		}
@@ -3372,10 +3372,15 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 		spin_unlock(&host->lock);
 		/* prevent suspend till the ksdioirqd runs or resume happens */
 		if ((host->mmc->dev_status == DEV_SUSPENDING) ||
-		    (host->mmc->dev_status == DEV_SUSPENDED))
+		    (host->mmc->dev_status == DEV_SUSPENDED)) {
+			pr_crit("%s: got async-irq: clocks: %d gated: %d host-irq[en:1/dis:0]: %d\n",
+				mmc_hostname(host->mmc), host->clock,
+				host->mmc->clk_gated, host->irq_enabled);
+
+			pr_crit("%s: %s @line=%d, dev_status=%d\n", mmc_hostname(host->mmc), __func__, __LINE__, host->mmc->dev_status);
 			pm_wakeup_event(&host->mmc->card->dev,
 					SDHCI_SUSPEND_TIMEOUT);
-		else
+		} else
 			mmc_signal_sdio_irq(host->mmc);
 		return IRQ_HANDLED;
 	} else if (!host->clock) {

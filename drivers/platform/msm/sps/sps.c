@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -57,6 +57,11 @@ u8 reg_dump_option;
 u32 testbus_sel;
 u32 bam_pipe_sel;
 u32 desc_option;
+/**
+ * Specifies range of log level from level 0 to level 3 to have fine-granularity for logging
+ * to serve all BAM use cases.
+ */
+u32 log_level_sel;
 
 static char *debugfs_buf;
 static u32 debugfs_buf_size;
@@ -74,6 +79,7 @@ struct dentry *dfile_testbus_sel;
 struct dentry *dfile_bam_pipe_sel;
 struct dentry *dfile_desc_option;
 struct dentry *dfile_bam_addr;
+struct dentry *dfile_log_level_sel;
 
 static struct sps_bam *phy2bam(phys_addr_t phys_addr);
 
@@ -297,6 +303,8 @@ static ssize_t sps_set_bam_addr(struct file *file, const char __user *buf,
 	} else {
 		vir_addr = &bam->base;
 		num_pipes = bam->props.num_pipes;
+		if (log_level_sel <= SPS_IPC_MAX_LOGLEVEL)
+			bam->ipc_loglevel = log_level_sel;
 	}
 
 	switch (reg_dump_option) {
@@ -507,6 +515,7 @@ static void sps_debugfs_init(void)
 	debugfs_buf_size = 0;
 	debugfs_buf_used = 0;
 	wraparound = false;
+	log_level_sel = SPS_IPC_MAX_LOGLEVEL + 1;
 
 	dent = debugfs_create_dir("sps", 0);
 	if (IS_ERR(dent)) {
@@ -582,10 +591,19 @@ static void sps_debugfs_init(void)
 		goto bam_addr_err;
 	}
 
+	dfile_log_level_sel = debugfs_create_u32("log_level_sel", 0664,
+						dent, &log_level_sel);
+	if (!dfile_log_level_sel || IS_ERR(dfile_log_level_sel)) {
+		pr_err("sps:fail to create debug_fs file for log_level_sel.\n");
+		goto bam_log_level_err;
+	}
+
 	mutex_init(&sps_debugfs_lock);
 
 	return;
 
+bam_log_level_err:
+	debugfs_remove(dfile_bam_addr);
 bam_addr_err:
 	debugfs_remove(dfile_desc_option);
 desc_option_err:
@@ -628,6 +646,7 @@ static void sps_debugfs_exit(void)
 		debugfs_remove(dfile_bam_addr);
 	if (dent)
 		debugfs_remove(dent);
+	debugfs_remove(dfile_log_level_sel);
 	kfree(debugfs_buf);
 	debugfs_buf = NULL;
 }
@@ -987,8 +1006,6 @@ static void sps_device_de_init(void)
 				"sps:%s:BAMs are still registered", __func__);
 
 		sps_map_de_init();
-
-		kfree(sps);
 	}
 
 	sps_mem_de_init();
@@ -1823,8 +1840,10 @@ int sps_get_config(struct sps_pipe *h, struct sps_connect *config)
 	if (pipe->bam == NULL)
 		SPS_DBG(sps, "sps:%s.\n", __func__);
 	else
-	SPS_DBG(pipe->bam, "sps:%s; BAM: %pa; pipe index:%d.\n",
-		__func__, BAM_ID(pipe->bam), pipe->pipe_index);
+		SPS_DBG(pipe->bam,
+			"sps:%s; BAM: %pa; pipe index:%d; options:0x%x.\n",
+			__func__, BAM_ID(pipe->bam), pipe->pipe_index,
+			pipe->connect.options);
 
 	/* Copy current client connection state */
 	*config = pipe->connect;
@@ -1852,11 +1871,13 @@ int sps_set_config(struct sps_pipe *h, struct sps_connect *config)
 	}
 
 	bam = sps_bam_lock(pipe);
-	if (bam == NULL)
+	if (bam == NULL) {
+		SPS_ERR(sps, "sps:%s:BAM is NULL.\n", __func__);
 		return SPS_ERROR;
+	}
 
-	SPS_DBG(bam, "sps:%s; BAM: %pa; pipe index:%d.\n",
-		__func__, BAM_ID(bam), pipe->pipe_index);
+	SPS_DBG(bam, "sps:%s; BAM: %pa; pipe index:%d, config-options:0x%x.\n",
+		__func__, BAM_ID(bam), pipe->pipe_index, config->options);
 
 	result = sps_bam_pipe_set_params(bam, pipe->pipe_index,
 					 config->options);
@@ -2163,50 +2184,47 @@ int sps_register_bam_device(const struct sps_bam_props *bam_props,
 					&bam->props.phys_addr);
 	bam->ipc_log0 = ipc_log_context_create(SPS_IPC_LOGPAGES,
 							bam_name, 0);
-	if (!bam->ipc_log0) {
+	if (!bam->ipc_log0)
 		SPS_ERR(sps, "%s : unable to create IPC Logging 0 for bam %pa",
 					__func__, &bam->props.phys_addr);
-		goto exit_err;
-	}
+
 	snprintf(bam_name, sizeof(bam_name), "sps_bam_%pa_1",
 					&bam->props.phys_addr);
 	bam->ipc_log1 = ipc_log_context_create(SPS_IPC_LOGPAGES,
 							bam_name, 0);
-	if (!bam->ipc_log1) {
+	if (!bam->ipc_log1)
 		SPS_ERR(sps, "%s : unable to create IPC Logging 1 for bam %pa",
 					__func__, &bam->props.phys_addr);
-		goto exit_err;
-	}
+
 	snprintf(bam_name, sizeof(bam_name), "sps_bam_%pa_2",
 					&bam->props.phys_addr);
 	bam->ipc_log2 = ipc_log_context_create(SPS_IPC_LOGPAGES,
 							bam_name, 0);
-	if (!bam->ipc_log2) {
+	if (!bam->ipc_log2)
 		SPS_ERR(sps, "%s : unable to create IPC Logging 2 for bam %pa",
 					__func__, &bam->props.phys_addr);
-		goto exit_err;
-	}
+
 	snprintf(bam_name, sizeof(bam_name), "sps_bam_%pa_3",
 					&bam->props.phys_addr);
 	bam->ipc_log3 = ipc_log_context_create(SPS_IPC_LOGPAGES,
 							bam_name, 0);
-	if (!bam->ipc_log3) {
+	if (!bam->ipc_log3)
 		SPS_ERR(sps, "%s : unable to create IPC Logging 3 for bam %pa",
 					__func__, &bam->props.phys_addr);
-		goto exit_err;
-	}
+
 	snprintf(bam_name, sizeof(bam_name), "sps_bam_%pa_4",
 					&bam->props.phys_addr);
 	bam->ipc_log4 = ipc_log_context_create(SPS_IPC_LOGPAGES,
 							bam_name, 0);
-	if (!bam->ipc_log4) {
+	if (!bam->ipc_log4)
 		SPS_ERR(sps, "%s : unable to create IPC Logging 4 for bam %pa",
 					__func__, &bam->props.phys_addr);
-		goto exit_err;
-	}
 
+	pr_err("sps bam ipc_loglevel %d\n",bam_props->ipc_loglevel);
 	if (bam_props->ipc_loglevel)
 		bam->ipc_loglevel = bam_props->ipc_loglevel;
+	else
+		bam->ipc_loglevel = SPS_IPC_DEFAULT_LOGLEVEL;
 
 	ok = sps_bam_device_init(bam);
 	mutex_unlock(&bam->lock);
@@ -2303,8 +2321,11 @@ int sps_deregister_bam_device(unsigned long dev_handle)
 	mutex_lock(&bam->lock);
 	sps_bam_device_de_init(bam);
 	mutex_unlock(&bam->lock);
+	ipc_log_context_destroy(bam->ipc_log0);
 	ipc_log_context_destroy(bam->ipc_log1);
 	ipc_log_context_destroy(bam->ipc_log2);
+	ipc_log_context_destroy(bam->ipc_log3);
+	ipc_log_context_destroy(bam->ipc_log4);
 	if (bam->props.virt_size)
 		(void)iounmap(bam->props.virt_addr);
 
@@ -2447,7 +2468,7 @@ int sps_pipe_disable(unsigned long dev, u32 pipe)
 	SPS_DBG(bam, "sps:%s; BAM: %pa; pipe index:%d.\n",
 		__func__, BAM_ID(bam), pipe);
 
-	bam_disable_pipe(bam->base, pipe);
+	bam_disable_pipe(&bam->base, pipe);
 
 	return 0;
 }
@@ -2970,6 +2991,7 @@ static struct platform_driver msm_sps_driver = {
 		.name	= SPS_DRV_NAME,
 		.owner	= THIS_MODULE,
 		.of_match_table = msm_sps_match,
+		.suppress_bind_attrs = true,
 	},
 	.remove		= msm_sps_remove,
 };

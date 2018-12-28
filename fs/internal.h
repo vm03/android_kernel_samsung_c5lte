@@ -51,6 +51,8 @@ extern int __inode_permission(struct inode *, int);
  */
 extern int copy_mount_options(const void __user *, unsigned long *);
 extern int copy_mount_string(const void __user *, char **);
+extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
+                   const char *, unsigned int, struct path *);
 
 extern struct vfsmount *lookup_mnt(struct path *);
 extern int finish_automount(struct vfsmount *, struct path *);

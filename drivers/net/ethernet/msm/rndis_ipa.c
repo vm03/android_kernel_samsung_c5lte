@@ -132,7 +132,6 @@ enum rndis_ipa_operation {
 	RNDIS_IPA_DEBUG("Driver state: %s\n",\
 	rndis_ipa_state_string(ctx->state));
 
-
 /**
  * struct rndis_ipa_dev - main driver context parameters
  *

@@ -68,7 +68,7 @@ static void *dummy_q6_mvm;
 static void *dummy_q6_cvs;
 dev_t device_num;
 
-spinlock_t voicesvc_lock;
+static spinlock_t voicesvc_lock;
 static bool is_released;
 static int voice_svc_dummy_reg(void);
 static int voice_svc_dummy_dereg(void);
@@ -383,7 +383,7 @@ static ssize_t voice_svc_write(struct file *file, const char __user *buf,
 	uint32_t cmd;
 	struct voice_svc_register *register_data = NULL;
 	struct voice_svc_cmd_request *request_data = NULL;
-	uint32_t request_payload_size;
+	uint32_t request_payload_size;	
 
 	pr_debug("%s\n", __func__);
 
@@ -773,7 +773,7 @@ static int voice_svc_probe(struct platform_device *pdev)
 	if (ret) {
 		pr_err("%s: Failed to alloc chrdev\n", __func__);
 		ret = -ENODEV;
-		goto chrdev_err;
+		goto done;
 	}
 
 	voice_svc_dev->major = MAJOR(device_num);
@@ -820,8 +820,6 @@ dev_err:
 	class_destroy(voice_svc_class);
 class_err:
 	unregister_chrdev_region(0, MINOR_NUMBER);
-chrdev_err:
-	kfree(voice_svc_dev);
 done:
 	return ret;
 }
@@ -835,7 +833,6 @@ static int voice_svc_remove(struct platform_device *pdev)
 	device_destroy(voice_svc_class, device_num);
 	class_destroy(voice_svc_class);
 	unregister_chrdev_region(0, MINOR_NUMBER);
-	kfree(voice_svc_dev);
 
 	return 0;
 }

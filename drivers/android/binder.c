@@ -643,7 +643,7 @@ static int binder_update_page_range(struct binder_proc *proc, int allocate,
 				PAGE_SIZE, PAGE_KERNEL, page);
 		flush_cache_vmap((unsigned long)page_addr,
 				(unsigned long)page_addr + PAGE_SIZE);
-		if(ret != 1){
+		if (ret != 1) {
 			pr_err("%d: binder_alloc_buf failed to map page at %pK in kernel\n",
 			       proc->pid, page_addr);
 			goto err_map_kernel_failed;
@@ -1935,7 +1935,6 @@ static void binder_transaction(struct binder_proc *proc,
 	} else {
 		if (tr->target.handle) {
 			struct binder_ref *ref;
-
 			ref = binder_get_ref(proc, tr->target.handle, true);
 			if (ref == NULL) {
 				binder_user_error("%d:%d got transaction to invalid handle\n",
@@ -2469,8 +2468,10 @@ int binder_thread_write(struct binder_proc *proc,
 				BUG_ON(!buffer->target_node->has_async_transaction);
 				if (list_empty(&buffer->target_node->async_todo))
 					buffer->target_node->has_async_transaction = 0;
-				else
-					list_move_tail(buffer->target_node->async_todo.next, &thread->todo);
+				else {
+					list_move_tail(buffer->target_node->async_todo.next, &thread->proc->todo);
+					wake_up_interruptible(&thread->proc->wait);
+				}
 			}
 			trace_binder_transaction_buffer_release(buffer);
 			binder_transaction_buffer_release(proc, buffer, NULL);
@@ -2645,7 +2646,8 @@ int binder_thread_write(struct binder_proc *proc,
 			}
 			binder_debug(BINDER_DEBUG_DEAD_BINDER,
 				     "%d:%d BC_DEAD_BINDER_DONE %016llx found %pK\n",
-				     proc->pid, thread->pid, (u64)cookie, death);
+				     proc->pid, thread->pid, (u64)cookie,
+				     death);
 			if (death == NULL) {
 				binder_user_error("%d:%d BC_DEAD_BINDER_DONE %016llx not found\n",
 					proc->pid, thread->pid, (u64)cookie);

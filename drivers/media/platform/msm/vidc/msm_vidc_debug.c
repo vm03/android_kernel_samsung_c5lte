@@ -168,6 +168,7 @@ struct dentry *msm_vidc_debugfs_init_drv(void)
 {
 	struct dentry *dir = NULL;
 
+	//mutex_init(&dbg_buf.lock);
 	dir = debugfs_create_dir("msm_vidc", NULL);
 	if (IS_ERR_OR_NULL(dir)) {
 		dir = NULL;
@@ -571,4 +572,3 @@ void msm_vidc_debugfs_update(struct msm_vidc_inst *inst,
 		break;
 	}
 }
-

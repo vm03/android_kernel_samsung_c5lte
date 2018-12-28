@@ -293,14 +293,22 @@
  * The minimum number of bits of entropy before we wake up a read on
  * /dev/random.  Should be enough to do a significant reseed.
  */
+#ifdef CONFIG_CRYPTO_FIPS
+static int random_read_wakeup_thresh = 256;
+#else
 static int random_read_wakeup_thresh = 64;
+#endif
 
 /*
  * If the entropy count falls under this number of bits, then we
  * should wake up processes which are selecting or polling on write
  * access to /dev/random.
  */
+#ifdef CONFIG_CRYPTO_FIPS
+static int random_write_wakeup_thresh = 320;
+#else
 static int random_write_wakeup_thresh = 128;
+#endif
 
 /*
  * When the input pool goes over trickle_thresh, start dropping most
@@ -623,6 +631,7 @@ retry:
 			prandom_reseed_late();
 			wake_up_interruptible(&urandom_init_wait);
 			pr_notice("random: %s pool is initialized\n", r->name);
+			dump_stack();
 		}
 	}
 
@@ -682,6 +691,7 @@ static struct timer_rand_state input_timer_state;
  */
 static void add_timer_randomness(struct timer_rand_state *state, unsigned num)
 {
+	struct entropy_store	*r;
 	struct {
 		long jiffies;
 		unsigned cycles;
@@ -691,14 +701,15 @@ static void add_timer_randomness(struct timer_rand_state *state, unsigned num)
 
 	preempt_disable();
 	/* if over the trickle threshold, use only 1 in 4096 samples */
-	if (input_pool.entropy_count > trickle_thresh &&
+	if (nonblocking_pool.initialized && input_pool.entropy_count > trickle_thresh &&
 	    ((__this_cpu_inc_return(trickle_count) - 1) & 0xfff))
 		goto out;
 
 	sample.jiffies = jiffies;
 	sample.cycles = get_cycles();
 	sample.num = num;
-	mix_pool_bytes(&input_pool, &sample, sizeof(sample), NULL);
+	r = nonblocking_pool.initialized ? &input_pool : &nonblocking_pool;
+	mix_pool_bytes(r, &sample, sizeof(sample), NULL);
 
 	/*
 	 * Calculate number of bits of randomness we probably added.
@@ -732,8 +743,7 @@ static void add_timer_randomness(struct timer_rand_state *state, unsigned num)
 		 * Round down by 1 bit on general principles,
 		 * and limit entropy entimate to 12 bits.
 		 */
-		credit_entropy_bits(&input_pool,
-				    min_t(int, fls(delta>>1), 11));
+		credit_entropy_bits(r, min_t(int, fls(delta>>1), 11));
 	}
 out:
 	preempt_enable();
@@ -1590,12 +1600,17 @@ void add_hwgenerator_randomness(const char *buffer, size_t count,
 {
 	struct entropy_store *poolp = &input_pool;
 
-	/* Suspend writing if we're above the trickle threshold.
-	 * We'll be woken up again once below random_write_wakeup_thresh,
-	 * or when the calling thread is about to terminate.
+	if (unlikely(nonblocking_pool.initialized == 0))
+		poolp = &nonblocking_pool;
+	else {
+		/* Suspend writing if we're above the trickle
+		 * threshold.  We'll be woken up again once below
+		 * random_write_wakeup_thresh, or when the calling
+		 * thread is about to terminate.
 	 */
 	wait_event_interruptible(random_write_wait, kthread_should_stop() ||
 			ENTROPY_BITS(poolp) <= random_write_wakeup_thresh);
+	}
 	mix_pool_bytes(poolp, buffer, count, NULL);
 	credit_entropy_bits(poolp, entropy);
 }

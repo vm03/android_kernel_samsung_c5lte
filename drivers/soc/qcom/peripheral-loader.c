@@ -42,6 +42,10 @@
 
 #include "peripheral-loader.h"
 
+#ifdef CONFIG_SEC_PERIPHERAL_SECURE_CHK
+#include <linux/qcom/sec_debug.h>
+#endif
+
 #define pil_err(desc, fmt, ...)						\
 	dev_err(desc->dev, "%s: " fmt, desc->name, ##__VA_ARGS__)
 #define pil_info(desc, fmt, ...)					\
@@ -502,13 +506,6 @@ static int pil_init_mmap(struct pil_desc *desc, const struct pil_mdt *mdt)
 	return pil_init_entry_addr(priv, mdt);
 }
 
-struct pil_map_fw_info {
-	void *region;
-	struct dma_attrs attrs;
-	phys_addr_t base_addr;
-	struct device *dev;
-};
-
 static void pil_release_mmap(struct pil_desc *desc)
 {
 	struct pil_priv *priv = desc->priv;
@@ -527,30 +524,14 @@ static void pil_release_mmap(struct pil_desc *desc)
 	}
 }
 
-static void pil_clear_segment(struct pil_desc *desc)
-{
-	struct pil_priv *priv = desc->priv;
-	u8 __iomem *buf;
-
-	struct pil_map_fw_info map_fw_info = {
-		.attrs = desc->attrs,
-		.region = priv->region,
-		.base_addr = priv->region_start,
-		.dev = desc->dev,
-	};
-
-	void *map_data = desc->map_data ? desc->map_data : &map_fw_info;
-
-	/* Clear memory so that unauthorized ELF code is not left behind */
-	buf = desc->map_fw_mem(priv->region_start, (priv->region_end -
-					priv->region_start), map_data);
-	pil_memset_io(buf, 0, (priv->region_end - priv->region_start));
-	desc->unmap_fw_mem(buf, (priv->region_end - priv->region_start),
-								map_data);
-
-}
-
 #define IOMAP_SIZE SZ_1M
+
+struct pil_map_fw_info {
+	void *region;
+	struct dma_attrs attrs;
+	phys_addr_t base_addr;
+	struct device *dev;
+};
 
 static void *map_fw_mem(phys_addr_t paddr, size_t size, void *data)
 {
@@ -736,6 +717,26 @@ int pil_boot(struct pil_desc *desc)
 		ret = desc->ops->init_image(desc, fw->data, fw->size);
 	if (ret) {
 		pil_err(desc, "Invalid firmware metadata\n");
+#ifdef CONFIG_SEC_PERIPHERAL_SECURE_CHK
+		if (ret == -EINVAL && ((!strcmp(desc->name, "mba")) || (!strcmp(desc->name, "modem")))) 
+		{
+			if (ret && desc->proxy_unvote_irq)
+				disable_irq(desc->proxy_unvote_irq);
+			pil_proxy_unvote(desc, ret);
+			release_firmware(fw);
+			up_read(&pil_pm_rwsem);
+			if (ret) {
+				if (priv->region) {
+					dma_free_attrs(desc->dev, priv->region_size,
+							priv->region, priv->region_start,
+							&desc->attrs);
+					priv->region = NULL;
+				}
+				pil_release_mmap(desc);
+			}
+			sec_peripheral_secure_check_fail();
+		}
+#endif
 		goto err_boot;
 	}
 
@@ -756,6 +757,27 @@ int pil_boot(struct pil_desc *desc)
 	ret = desc->ops->auth_and_reset(desc);
 	if (ret) {
 		pil_err(desc, "Failed to bring out of reset\n");
+#ifdef CONFIG_SEC_PERIPHERAL_SECURE_CHK
+		if ( ret == -EINVAL && ((!strcmp(desc->name, "mba")) || (!strcmp(desc->name, "modem")))) {
+			if (ret && desc->ops->deinit_image)
+				desc->ops->deinit_image(desc);
+			if (ret && desc->proxy_unvote_irq)
+				disable_irq(desc->proxy_unvote_irq);
+			pil_proxy_unvote(desc, ret);
+			release_firmware(fw);
+			up_read(&pil_pm_rwsem);
+			if (ret) {
+				if (priv->region) {
+					dma_free_attrs(desc->dev, priv->region_size,
+							priv->region, priv->region_start,
+							&desc->attrs);
+					priv->region = NULL;
+				}
+				pil_release_mmap(desc);
+			}
+			sec_peripheral_secure_check_fail();
+		}
+#endif
 		goto err_deinit_image;
 	}
 	pil_info(desc, "Brought out of reset\n");
@@ -777,8 +799,6 @@ out:
 					&desc->attrs);
 			priv->region = NULL;
 		}
-		if (desc->clear_fw_region && priv->region_start)
-			pil_clear_segment(desc);
 		pil_release_mmap(desc);
 	}
 	return ret;

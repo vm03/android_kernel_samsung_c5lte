@@ -2245,6 +2245,13 @@ static int dm_init_request_based_queue(struct mapped_device *md)
 	if (!q)
 		return 0;
 
+#ifdef CONFIG_IOSCHED_NOOP
+	if (elevator_change(md->queue, "noop")) {
+		DMWARN("failed to swith noop-io scheduler for %s",
+				dm_device_name(md));
+	}
+#endif
+
 	md->queue = q;
 	dm_init_md_queue(md);
 	blk_queue_softirq_done(md->queue, dm_softirq_done);

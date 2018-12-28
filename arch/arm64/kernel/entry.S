@@ -202,7 +202,7 @@ END(vectors)
  * Invalid mode handlers
  */
 	.macro	inv_entry, el, reason, regsize = 64
-	kernel_entry el, \regsize
+	kernel_entry \el, \regsize
 	mov	x0, sp
 	mov	x1, #\reason
 	mrs	x2, esr_el1
@@ -368,7 +368,7 @@ el0_sync:
 	lsr	x24, x25, #ESR_EL1_EC_SHIFT	// exception class
 	cmp	x24, #ESR_EL1_EC_SVC64		// SVC in 64-bit state
 	b.eq	el0_svc
-	adr	lr, ret_to_user
+//	adr	lr, ret_to_user
 	cmp	x24, #ESR_EL1_EC_DABT_EL0	// data abort in EL0
 	b.eq	el0_da
 	cmp	x24, #ESR_EL1_EC_IABT_EL0	// instruction abort in EL0
@@ -397,7 +397,7 @@ el0_sync_compat:
 	lsr	x24, x25, #ESR_EL1_EC_SHIFT	// exception class
 	cmp	x24, #ESR_EL1_EC_SVC32		// SVC in 32-bit state
 	b.eq	el0_svc_compat
-	adr	lr, ret_to_user
+//	adr	lr, ret_to_user
 	cmp	x24, #ESR_EL1_EC_DABT_EL0	// data abort in EL0
 	b.eq	el0_da
 	cmp	x24, #ESR_EL1_EC_IABT_EL0	// instruction abort in EL0
@@ -440,24 +440,30 @@ el0_da:
 	/*
 	 * Data abort handling
 	 */
-	mrs	x0, far_el1
-	bic	x0, x0, #(0xff << 56)
+//	mrs	x0, far_el1
+//	bic	x0, x0, #(0xff << 56)
+	mrs	x26, far_el1
 	// enable interrupts before calling the main handler
 	enable_dbg_and_irq
+	bic	x0, x26, #(0xff << 56)
 	mov	x1, x25
 	mov	x2, sp
+	adr     lr, ret_to_user
 	b	do_mem_abort
 el0_ia:
 	/*
 	 * Instruction abort handling
 	 */
-	mrs	x0, far_el1
+//	mrs	x0, far_el1
+	mrs	x26, far_el1
 	enable_dbg
 #ifdef CONFIG_TRACE_IRQFLAGS
 	bl	trace_hardirqs_off
 #endif
+	mov	x0, x26
 	orr	x1, x25, #1 << 24		// use reserved ISS bit for instruction aborts
 	mov	x2, sp
+	adr     lr, ret_to_user
 	b	do_el0_ia_bp_hardening
 el0_fpsimd_acc:
 	/*
@@ -466,6 +472,7 @@ el0_fpsimd_acc:
 	enable_dbg
 	mov	x0, x25
 	mov	x1, sp
+	adr	lr, ret_to_user
 	b	do_fpsimd_acc
 el0_fpsimd_exc:
 	/*
@@ -474,16 +481,20 @@ el0_fpsimd_exc:
 	enable_dbg
 	mov	x0, x25
 	mov	x1, sp
+	adr	lr, ret_to_user
 	b	do_fpsimd_exc
 el0_sp_pc:
 	/*
 	 * Stack or PC alignment exception handling
 	 */
-	mrs	x0, far_el1
+//	mrs	x0, far_el1
+	mrs	x26, far_el1
 	// enable interrupts before calling the main handler
 	enable_dbg_and_irq
+	mov	x0, x26
 	mov	x1, x25
 	mov	x2, sp
+	adr	lr, ret_to_user
 	b	do_sp_pc_abort
 el0_undef:
 	/*
@@ -492,6 +503,7 @@ el0_undef:
 	// enable interrupts before calling the main handler
 	enable_dbg_and_irq
 	mov	x0, sp
+	adr     lr, ret_to_user
 	b	do_undefinstr
 el0_sys:
 	/*
@@ -501,6 +513,7 @@ el0_sys:
 	enable_irq
 	mov	x0, x25
 	mov	x1, sp
+	adr     lr, ret_to_user
 	b	do_sysinstr
 el0_dbg:
 	/*
@@ -518,6 +531,7 @@ el0_inv:
 	mov	x0, sp
 	mov	x1, #BAD_SYNC
 	mrs	x2, esr_el1
+	adr	lr, ret_to_user
 	b	bad_mode
 ENDPROC(el0_sync)
 
@@ -641,6 +655,29 @@ el0_svc_naked:					// compat entry point
 	adr	lr, ret_fast_syscall		// return address
 	cmp     scno, sc_nr                     // check upper syscall limit
 	b.hs	ni_sys
+#ifdef CONFIG_SECURITY_DEFEX
+/*
+ * Defex enter hook
+ */
+
+	ldr	x16, =defex_syscall_catch_enter
+	ldr	x16, [x16]
+	cmp	x16, xzr
+	b.eq	2f
+	mov	x0, scno
+	mov	x1, sp
+	blr	x16
+
+	cbnz	w0, ret_fast_syscall		// block this syscall?
+	adr	lr, ret_fast_syscall		// return address (not needed here)
+
+	ldp	x0, x1, [sp]			// restore the syscall args
+	ldp	x2, x3, [sp, #S_X2]
+	ldp	x4, x5, [sp, #S_X4]
+	ldp	x6, x7, [sp, #S_X6]
+
+2:
+#endif
 	ldr	x16, [stbl, scno, lsl #3]	// address in the syscall table
 	br	x16				// call sys_* routine
 ni_sys:
@@ -664,6 +701,23 @@ __sys_trace:
 	mov	x1, sp				// pointer to regs
 	cmp	scno, sc_nr			// check upper syscall limit
 	b.hs	ni_sys
+#ifdef CONFIG_SECURITY_DEFEX
+/*
+ * Defex enter hook
+ */
+
+	ldr	x16, =defex_syscall_catch_enter
+	ldr	x16, [x16]
+	cmp	x16, xzr
+	b.eq	3f
+	mov	x0, scno
+	mov	x1, sp
+	blr	x16
+
+	cbnz	w0, __sys_trace_return		// block this syscall?
+	adr	lr, __sys_trace_return		// return address (not neede here)
+3:
+#endif
 	ldp	x0, x1, [sp]			// restore the syscall args
 	ldp	x2, x3, [sp, #S_X2]
 	ldp	x4, x5, [sp, #S_X4]

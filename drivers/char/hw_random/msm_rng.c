@@ -369,6 +369,7 @@ static int msm_rng_probe(struct platform_device *pdev)
 	struct device *dev;
 
 	struct msm_bus_scale_pdata *qrng_platform_support = NULL;
+	pr_err("debug fun=%s line=%d \n",__FUNCTION__ , __LINE__);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
@@ -517,6 +518,7 @@ static struct platform_driver rng_driver = {
 
 static int __init msm_rng_init(void)
 {
+	pr_err("debug fun=%s line=%d \n",__FUNCTION__ , __LINE__);
 	return platform_driver_register(&rng_driver);
 }
 

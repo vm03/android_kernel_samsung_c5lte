@@ -1703,6 +1703,8 @@ static void msm_pcie_sel_debug_testcase(struct msm_pcie_dev_t *dev,
 		if (wr_offset >  base_sel_size - 4 ||
 			msm_pcie_check_align(dev, wr_offset))
 			pr_alert("PCIe: RC%d: Invalid wr_offset: 0x%x. wr_offset should be no more than 0x%x\n",
+			PCIE_DBG_FS(dev,
+				"PCIe: RC%d: Invalid wr_offset: 0x%x. wr_offset should be no more than 0x%x\n",
 				dev->rc_idx, wr_offset, base_sel_size - 4);
 		else
 			msm_pcie_write_reg_field(dev->res[base_sel - 1].base,

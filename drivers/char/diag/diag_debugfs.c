@@ -138,7 +138,7 @@ static ssize_t diag_dbgfs_read_dcistats(struct file *file,
 
 	buf_size = ksize(buf);
 	bytes_remaining = buf_size;
-
+	
 	mutex_lock(&diag_dci_dbgfs_mutex);
 	if (diag_dbgfs_dci_data_index == 0) {
 		bytes_written =
@@ -256,7 +256,6 @@ static ssize_t diag_dbgfs_read_table(struct file *file, char __user *ubuf,
 	struct list_head *start;
 	struct list_head *temp;
 	struct diag_cmd_reg_t *item = NULL;
-
 	mutex_lock(&driver->cmd_reg_mutex);
 	if (diag_dbgfs_table_index == driver->cmd_reg_count) {
 		diag_dbgfs_table_index = 0;
@@ -315,7 +314,6 @@ static ssize_t diag_dbgfs_read_table(struct file *file, char __user *ubuf,
 	}
 	diag_dbgfs_table_index = i;
 	mutex_unlock(&driver->cmd_reg_mutex);
-
 	*ppos = 0;
 	ret = simple_read_from_buffer(ubuf, count, ppos, buf, bytes_in_buffer);
 
@@ -363,7 +361,7 @@ static ssize_t diag_dbgfs_read_mempool(struct file *file, char __user *ubuf,
 		mempool = &diag_mempools[i];
 		bytes_written = scnprintf(buf+bytes_in_buffer, bytes_remaining,
 			"%-24s\t"
-			"%-10p\t"
+			"%-10pK\t"
 			"%-5d\t"
 			"%-5d\t"
 			"%-5d\n",

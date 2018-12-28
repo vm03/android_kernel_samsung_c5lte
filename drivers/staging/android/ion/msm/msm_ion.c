@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2014, 2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -113,8 +113,13 @@ static struct ion_heap_desc ion_heap_meta[] = {
 #endif
 
 static int msm_ion_lowmem_notifier(struct notifier_block *nb,
-					unsigned long action, void *data)
+					unsigned long is_simple, void *data)
 {
+	if (is_simple) {
+		show_ion_usage_simple(idev, is_simple, (struct seq_file *)data);
+		return 0;
+	}
+
 	show_ion_usage(idev);
 	return 0;
 }
@@ -281,7 +286,7 @@ int ion_do_cache_op(struct ion_client *client, struct ion_handle *handle,
 	if (!ION_IS_CACHED(flags))
 		return 0;
 
-	if ((flags & ION_FLAG_SECURE) || (get_secure_vmid(flags) > 0))
+	if (get_secure_vmid(flags) > 0)
 		return 0;
 
 	table = ion_sg_table(client, handle);
@@ -1081,6 +1086,7 @@ static int msm_ion_remove(struct platform_device *pdev)
 
 	ion_device_destroy(idev);
 	kfree(heaps);
+	show_mem_notifier_unregister(&msm_ion_nb);
 	return 0;
 }
 

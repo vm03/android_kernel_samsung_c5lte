@@ -2,7 +2,7 @@
  * Core MDSS framebuffer driver.
  *
  * Copyright (C) 2007 Google Incorporated
- * Copyright (c) 2008-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2008-2017, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -55,6 +55,9 @@
 #include "mdss_mdp_splash_logo.h"
 #define CREATE_TRACE_POINTS
 #include "mdss_debug.h"
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+#include "samsung/ss_dsi_panel_common.h" /* UTIL HEADER */
+#endif
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MDSS_FB_NUM 3
@@ -852,11 +855,22 @@ static void mdss_fb_videomode_from_panel_timing(struct fb_videomode *videomode,
 	videomode->upper_margin = pt->v_back_porch;
 	videomode->lower_margin = pt->v_front_porch;
 	videomode->vsync_len = pt->v_pulse_width;
-	videomode->pixclock = pt->clk_rate;
 	videomode->refresh = pt->frame_rate;
 	videomode->flag = 0;
 	videomode->vmode = 0;
 	videomode->sync = 0;
+	if (videomode->refresh) {
+		unsigned long clk_rate, h_total, v_total;
+
+		h_total = videomode->xres + videomode->left_margin
+			+ videomode->right_margin + videomode->hsync_len;
+		v_total = videomode->yres + videomode->lower_margin
+			+ videomode->upper_margin + videomode->vsync_len;
+		clk_rate = h_total * v_total * videomode->refresh;
+		videomode->pixclock = KHZ2PICOS(clk_rate / 1000);
+	} else {
+		videomode->pixclock = KHZ2PICOS(pt->clk_rate / 1000);
+	}
 }
 
 static int mdss_fb_init_panel_modes(struct msm_fb_data_type *mfd,
@@ -914,6 +928,12 @@ static int mdss_fb_init_panel_modes(struct msm_fb_data_type *mfd,
 
 	fbi->monspecs.modedb = modedb;
 	fbi->monspecs.modedb_len = num_timings;
+	/* destroy and recreate modelist */
+	fb_destroy_modelist(&fbi->modelist);
+
+	if (fbi->mode)
+		fb_videomode_to_var(&fbi->var, fbi->mode);
+
 	fb_videomode_to_modelist(modedb, num_timings, &fbi->modelist);
 
 	return 0;
@@ -1040,8 +1060,12 @@ static int mdss_fb_probe(struct platform_device *pdev)
 			pr_err("led_classdev_register failed\n");
 		else
 			lcd_backlight_registered = 1;
-	}
 
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+		/* init bl_levle_scaled -1 to be set by bl_level 0 */
+		mfd->bl_level_scaled = -1;
+#endif
+	}
 	mdss_fb_init_panel_modes(mfd, pdata);
 
 	mdss_fb_create_sysfs(mfd);
@@ -1409,7 +1433,6 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 			mfd->bl_level = bkl_lvl;
 			mfd->bl_level_scaled = temp;
 		}
-
 		if (bl_notify_needed)
 			sysfs_notify(&mfd->fbi->dev->kobj, NULL, "pp_bl_event");
 	}
@@ -1470,10 +1493,9 @@ static void mdss_fb_stop_disp_thread(struct msm_fb_data_type *mfd)
 {
 	pr_debug("%pS: stop display thread fb%d\n",
 		__builtin_return_address(0), mfd->index);
-	mutex_lock(&mfd->mdp_sync_pt_data.sync_mutex);
+
 	kthread_stop(mfd->disp_thread);
 	mfd->disp_thread = NULL;
-	mutex_unlock(&mfd->mdp_sync_pt_data.sync_mutex);
 }
 
 static void mdss_panel_validate_debugfs_info(struct msm_fb_data_type *mfd)
@@ -1620,12 +1642,14 @@ static int mdss_fb_blank_unblank(struct msm_fb_data_type *mfd)
 					(mfd->unset_bl_level != U32_MAX))
 				mdss_fb_set_backlight(mfd, mfd->unset_bl_level);
 
+			#if !defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
 			/*
 			 * it blocks the backlight update between unblank and
 			 * first kickoff to avoid backlight turn on before black
 			 * frame is transferred to panel through unblank call.
 			 */
 			mfd->allow_bl_update = false;
+			#endif
 		}
 		mutex_unlock(&mfd->bl_lock);
 	}
@@ -1641,6 +1665,9 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 	int ret = 0;
 	int cur_power_state, req_power_state = MDSS_PANEL_POWER_OFF;
 	char trace_buffer[32];
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+	struct samsung_display_driver_data *vdd = samsung_get_vdd();
+#endif
 
 	if (!mfd || !op_enable)
 		return -EPERM;
@@ -1650,6 +1677,16 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 
 	pr_debug("%pS mode:%d\n", __builtin_return_address(0),
 		blank_mode);
+
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+	pr_err("FB_NUM:%d, MDSS_FB_%s ++ on=%d\n", mfd->panel_info->fb_num,
+			blank_mode == FB_BLANK_POWERDOWN ? "BLANK":
+			blank_mode == FB_BLANK_HSYNC_SUSPEND ? "BLANK":
+			blank_mode == FB_BLANK_UNBLANK ? "UNBLANK":
+			blank_mode == BLANK_FLAG_LP ? "DOZE":
+			blank_mode == BLANK_FLAG_ULP ? "DOZE_SUSPEND":"NONE",
+			mdss_fb_is_power_on(mfd));
+#endif
 
 	snprintf(trace_buffer, sizeof(trace_buffer), "fb%d blank %d",
 		mfd->index, blank_mode);
@@ -1677,6 +1714,12 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 				blank_mode = FB_BLANK_POWERDOWN;
 		}
 	}
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+	mutex_lock(&vdd->vdd_blank_unblank_lock);
+	if (info->node <= (SUPPORT_PANEL_COUNT - 1))
+		vdd->vdd_blank_mode[info->node] =  blank_mode;
+	mutex_unlock(&vdd->vdd_blank_unblank_lock);
+#endif
 
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
@@ -1723,6 +1766,14 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 	sysfs_notify(&mfd->fbi->dev->kobj, NULL, "show_blank_event");
 
 	ATRACE_END(trace_buffer);
+#if defined(CONFIG_FB_MSM_MDSS_SAMSUNG)
+	pr_err("FB_NUM:%d, MDSS_FB_%s -- \n", mfd->panel_info->fb_num,
+			blank_mode == FB_BLANK_POWERDOWN ? "BLANK":
+			blank_mode == FB_BLANK_HSYNC_SUSPEND ? "BLANK":
+			blank_mode == FB_BLANK_UNBLANK ? "UNBLANK":
+			blank_mode == BLANK_FLAG_LP ? "DOZE":
+			blank_mode == BLANK_FLAG_ULP ? "DOZE_SUSPEND":"NONE");
+#endif
 
 	return ret;
 }
@@ -2294,8 +2345,8 @@ static int mdss_fb_register(struct msm_fb_data_type *mfd)
 		return ret;
 	}
 
-	var->xres = mdss_fb_get_panel_xres(panel_info);
-
+	mdss_panelinfo_to_fb_var(panel_info, var);
+	
 	fix->type = panel_info->is_3d_panel;
 	if (mfd->mdp.fb_stride)
 		fix->line_length = mfd->mdp.fb_stride(mfd->index, var->xres,
@@ -2303,21 +2354,9 @@ static int mdss_fb_register(struct msm_fb_data_type *mfd)
 	else
 		fix->line_length = var->xres * bpp;
 
-	var->yres = panel_info->yres;
-	if (panel_info->physical_width)
-		var->width = panel_info->physical_width;
-	if (panel_info->physical_height)
-		var->height = panel_info->physical_height;
 	var->xres_virtual = var->xres;
 	var->yres_virtual = panel_info->yres * mfd->fb_page;
 	var->bits_per_pixel = bpp * 8;	/* FrameBuffer color depth */
-	var->upper_margin = panel_info->lcdc.v_back_porch;
-	var->lower_margin = panel_info->lcdc.v_front_porch;
-	var->vsync_len = panel_info->lcdc.v_pulse_width;
-	var->left_margin = panel_info->lcdc.h_back_porch;
-	var->right_margin = panel_info->lcdc.h_front_porch;
-	var->hsync_len = panel_info->lcdc.h_pulse_width;
-	var->pixclock = panel_info->clk_rate / 1000;
 
 	/*
 	 * Store the cont splash state in the var reserved[3] field.
@@ -2757,6 +2796,9 @@ static int __mdss_fb_wait_for_fence_sub(struct msm_sync_pt_data *sync_pt_data,
 	if (ret < 0) {
 		pr_err("%s: sync_fence_wait failed! ret = %x\n",
 				sync_pt_data->fence_name, ret);
+        
+        MDSS_XLOG_TOUT_HANDLER("mdp", "panic");
+        
 		for (; i < fence_cnt; i++)
 			sync_fence_put(fences[i]);
 	}
@@ -3017,12 +3059,10 @@ static int mdss_fb_pan_display_ex(struct fb_info *info,
 	mfd->msm_fb_backup.info = *info;
 	mfd->msm_fb_backup.disp_commit = *disp_commit;
 
-	if (mfd->disp_thread) {
-		atomic_inc(&mfd->mdp_sync_pt_data.commit_cnt);
-		atomic_inc(&mfd->commits_pending);
-		atomic_inc(&mfd->kickoff_pending);
-		wake_up_all(&mfd->commit_wait_q);
-	}
+	atomic_inc(&mfd->mdp_sync_pt_data.commit_cnt);
+	atomic_inc(&mfd->commits_pending);
+	atomic_inc(&mfd->kickoff_pending);
+	wake_up_all(&mfd->commit_wait_q);
 	mutex_unlock(&mfd->mdp_sync_pt_data.sync_mutex);
 	if (wait_for_finish) {
 		ret = mdss_fb_pan_idle(mfd);
@@ -3104,17 +3144,21 @@ static void mdss_fb_var_to_panelinfo(struct fb_var_screeninfo *var,
 	pinfo->lcdc.h_front_porch = var->right_margin;
 	pinfo->lcdc.h_back_porch = var->left_margin;
 	pinfo->lcdc.h_pulse_width = var->hsync_len;
-	pinfo->clk_rate = var->pixclock;
+	/*
+	 * if greater than 1M, then rate would fall below 1mhz which is not
+	 * even supported. In this case it means clock rate is actually
+	 * passed directly in hz.
+	 */
+	if (var->pixclock > SZ_1M)
+		pinfo->clk_rate = var->pixclock;
+	else
+		pinfo->clk_rate = PICOS2KHZ(var->pixclock) * 1000;
 }
 
 static void mdss_panelinfo_to_fb_var(struct mdss_panel_info *pinfo,
 						struct fb_var_screeninfo *var)
 {
-	u32 frame_rate;
-	struct mdss_panel_data *pdata = container_of(pinfo,
-				struct mdss_panel_data, panel_info);
-
-	var->xres = mdss_fb_get_panel_xres(&pdata->panel_info);
+	var->xres = mdss_fb_get_panel_xres(pinfo);
 	var->yres = pinfo->yres;
 	var->lower_margin = pinfo->lcdc.v_front_porch;
 	var->upper_margin = pinfo->lcdc.v_back_porch;
@@ -3123,20 +3167,12 @@ static void mdss_panelinfo_to_fb_var(struct mdss_panel_info *pinfo,
 	var->left_margin = pinfo->lcdc.h_back_porch;
 	var->hsync_len = pinfo->lcdc.h_pulse_width;
 
-	frame_rate = mdss_panel_get_framerate(pinfo);
-	if (frame_rate) {
-		unsigned long clk_rate, h_total, v_total;
+	var->pixclock = KHZ2PICOS(pinfo->clk_rate / 1000);
 
-		h_total = var->xres + var->left_margin
-			+ var->right_margin + var->hsync_len;
-		v_total = var->yres + var->lower_margin
-			+ var->upper_margin + var->vsync_len;
-		clk_rate = h_total * v_total * frame_rate;
-		var->pixclock = KHZ2PICOS(clk_rate / 1000);
-	} else if (pinfo->clk_rate) {
-		var->pixclock = KHZ2PICOS(
-				(unsigned long int) pinfo->clk_rate / 1000);
-	}
+	if (pinfo->physical_width)
+		var->width = pinfo->physical_width;
+	if (pinfo->physical_height)
+		var->height = pinfo->physical_height;
 }
 
 /**
@@ -3174,8 +3210,10 @@ static int __mdss_fb_perform_commit(struct msm_fb_data_type *mfd)
 	}
 	if (fb_backup->disp_commit.flags & MDP_DISPLAY_COMMIT_OVERLAY) {
 		if (mfd->mdp.kickoff_fnc)
+		{
 			ret = mfd->mdp.kickoff_fnc(mfd,
 					&fb_backup->disp_commit);
+		}
 		else
 			pr_warn("no kickoff function setup for fb%d\n",
 					mfd->index);
@@ -3484,6 +3522,13 @@ static int mdss_fb_set_par(struct fb_info *info)
 		mode = fb_match_mode(var, &info->modelist);
 		if (!mode)
 			return -EINVAL;
+			
+		pr_debug("found mode: %s\n", mode->name);
+
+		if (fb_mode_is_equal(mode, info->mode)) {
+			pr_debug("mode is equal to current mode\n");
+			return 0;
+		}
 
 		ret = mdss_fb_videomode_switch(mfd, mode);
 		if (ret)
@@ -3762,6 +3807,7 @@ static int mdss_fb_handle_buf_sync_ioctl(struct msm_sync_pt_data *sync_pt_data,
 
 skip_retire_fence:
 	sync_fence_install(rel_fence, rel_fen_fd);
+
 	mutex_unlock(&sync_pt_data->sync_mutex);
 
 	if (buf_sync->flags & MDP_BUF_SYNC_FLAG_WAIT)

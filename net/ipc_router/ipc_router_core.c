@@ -217,7 +217,7 @@ static void init_routing_table(void)
  */
 static void skb_copy_to_log_buf(struct sk_buff_head *skb_head,
 				unsigned int pl_len, unsigned int hdr_offset,
-				uint64_t *log_buf)
+				unsigned char *log_buf)
 {
 	struct sk_buff *temp_skb;
 	unsigned int copied_len = 0, copy_len = 0;
@@ -297,7 +297,8 @@ static void ipc_router_log_msg(void *log_ctx, uint32_t xchng_type,
 			else if (hdr->version == IPC_ROUTER_V2)
 				hdr_offset = sizeof(struct rr_header_v2);
 		}
-		skb_copy_to_log_buf(skb_head, buf_len, hdr_offset, &pl_buf);
+		skb_copy_to_log_buf(skb_head, buf_len, hdr_offset,
+				    (unsigned char *)&pl_buf);
 
 		if (port_ptr && rport_ptr && (port_ptr->type == CLIENT_PORT)
 				&& (rport_ptr->server != NULL)) {
@@ -1469,6 +1470,14 @@ static int msm_ipc_router_lookup_resume_tx_port(
 }
 
 /**
+ * ipc_router_dummy_write_space() - Dummy write space available callback
+ * @sk:	Socket pointer for which the callback is called.
+ */
+void ipc_router_dummy_write_space(struct sock *sk)
+{
+}
+
+/**
  * post_resume_tx() - Post the resume_tx event
  * @rport_ptr: Pointer to the remote port
  * @pkt : The data packet that is received on a resume_tx event
@@ -1504,10 +1513,11 @@ static void post_resume_tx(struct msm_ipc_router_remote_port *rport_ptr,
 				read_lock(&sk->sk_callback_lock);
 				write_space = sk->sk_write_space;
 				read_unlock(&sk->sk_callback_lock);
-				if (write_space)
-					write_space(sk);
 			}
-			if (!write_space)
+			if (write_space &&
+			    write_space != ipc_router_dummy_write_space)
+				write_space(sk);
+			else
 				post_pkt_to_port(local_port, pkt, 1);
 		} else {
 			IPC_RTR_ERR("%s: Local Port %d not Found",
@@ -2702,7 +2712,7 @@ int msm_ipc_router_register_server(struct msm_ipc_port *port_ptr,
 
 	if (!port_ptr || !name)
 		return -EINVAL;
-
+	
 	if (port_ptr->type != CLIENT_PORT)
 		return -EINVAL;
 

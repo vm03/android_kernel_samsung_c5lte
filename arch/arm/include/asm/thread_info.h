@@ -89,7 +89,7 @@ struct thread_info {
 #define init_stack		(init_thread_union.stack)
 
 /*
- * how to get the current stack pointer in C
+ * how to get the current stack pointer from C
  */
 register unsigned long current_stack_pointer asm ("sp");
 

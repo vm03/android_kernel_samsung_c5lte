@@ -18,12 +18,12 @@ config MSM_CAMERA_DEBUG
 	help
 	  Enable printk() debug for msm camera
 
-config MSM_CAMERA_AUTOMOTIVE
-	bool "Qualcomm MSM camera for automotive support"
-	depends on MSM_CAMERA
-	default n
+config S5K6B2YX
+	bool "Sensor S5K6B2YX (BAYER 2M)"
+	depends on MSMB_CAMERA
 	---help---
-	  Enables support for automotive targets
+		Samsung 2 MP Bayer Sensor,
+		Front Sensor.
 
 menuconfig MSMB_CAMERA
 	bool "Qualcomm MSM camera and video capture 2.0 support"

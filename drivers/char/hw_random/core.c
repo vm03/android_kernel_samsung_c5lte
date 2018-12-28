@@ -72,7 +72,7 @@ static size_t rng_buffer_size(void)
 static inline int hwrng_init(struct hwrng *rng)
 {
 	int err;
-
+	pr_err("debug fun=%s line=%d \n",__FUNCTION__ , __LINE__);
 	if (rng->init) {
 		err = rng->init(rng);
 		if (err)
@@ -209,6 +209,7 @@ static ssize_t hwrng_attr_current_store(struct device *dev,
 {
 	int err;
 	struct hwrng *rng;
+	pr_err("debug fun=%s line=%d \n",__FUNCTION__ , __LINE__);
 
 	err = mutex_lock_interruptible(&rng_mutex);
 	if (err)
@@ -321,6 +322,7 @@ err_misc_dereg:
 static int hwrng_fillfn(void *unused)
 {
 	long rc;
+	pr_err("debug fun=%s line=%d \n",__FUNCTION__ , __LINE__);
 
 	while (!kthread_should_stop()) {
 		if (!current_rng)
@@ -341,6 +343,7 @@ static int hwrng_fillfn(void *unused)
 
 static void start_khwrngd(void)
 {
+	pr_err("debug fun=%s line=%d \n",__FUNCTION__ , __LINE__);
 	hwrng_fill = kthread_run(hwrng_fillfn, NULL, "hwrng");
 	if (hwrng_fill == ERR_PTR(-ENOMEM)) {
 		pr_err("hwrng_fill thread creation failed");
@@ -353,6 +356,8 @@ int hwrng_register(struct hwrng *rng)
 	int must_register_misc;
 	int err = -EINVAL;
 	struct hwrng *old_rng, *tmp;
+	pr_err("debug fun=%s line=%d \n",__FUNCTION__ , __LINE__);
+    dump_stack();
 
 	if (rng->name == NULL ||
 	    (rng->data_read == NULL && rng->read == NULL))
@@ -413,7 +418,7 @@ EXPORT_SYMBOL_GPL(hwrng_register);
 void hwrng_unregister(struct hwrng *rng)
 {
 	int err;
-
+	pr_err("debug fun=%s line=%d \n",__FUNCTION__ , __LINE__);
 	mutex_lock(&rng_mutex);
 
 	list_del(&rng->list);

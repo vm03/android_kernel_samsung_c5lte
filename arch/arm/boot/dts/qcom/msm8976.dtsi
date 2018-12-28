@@ -73,6 +73,27 @@
 	memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
+		ranges;
+
+		ramoops@40400000 {
+ 			linux,reserve-contiguous-region;
+ 		 	linux,reserve-region;
+ 			linux,remove-completely;
+ 			reg = <0x0 0x40400000 0x0 0x0100000>;
+ 			compatible = "ramoops";
+			record-size = <0x40000>;
+			console-size = <0x40000>;
+			ftrace-size = <0x40000>;
+			pmsg-size = <0x40000>;
+		};
+		
+		ss_plog@40000000 {
+			compatible = "ss_plog";
+			linux,reserve-contiguous-region;
+			linux,reserve-region;
+			linux,remove-completely;
+			reg = <0x0 0x40000000 0x0 0x00400000>;
+		};
 
 		other_ext_mem: other_ext_region@0 {
 			linux,reserve-contiguous-region;
@@ -104,7 +125,6 @@
 			reg = <0x0 0x0 0x0 0x0500000>;
 			label = "venus_mem";
 		};
-
 		secure_mem: secure_region@0 {
 			linux,reserve-contiguous-region;
 			linux,memory-limit = <0xffffffff>;
@@ -1270,7 +1290,6 @@
 		hsusb_vdd_dig-supply = <&pm8950_s6_level>;
 		HSUSB_1p8-supply = <&pm8950_l7>;
 		HSUSB_3p3-supply = <&pm8950_l13>;
-		vbus_otg-supply = <&smbcharger_charger_otg>;
 		qcom,vdd-voltage-level = <RPM_SMD_REGULATOR_LEVEL_NONE
 					RPM_SMD_REGULATOR_LEVEL_NOM
 					RPM_SMD_REGULATOR_LEVEL_BINNING>;
@@ -1644,9 +1663,9 @@
 		qcom,support-bus-scaling;
 		qcom,msm-bus,vectors-KBps =
 			<55 512 0 0>,
-			<55 512 200000 400000>,
-			<55 512 300000 800000>,
-			<55 512 400000 1000000>;
+			<55 512 0 0>,
+			<55 512 120000 1200000>,
+			<55 512 393600 3936000>;
 		clocks = <&clock_gcc clk_crypto_clk_src>,
 			 <&clock_gcc clk_gcc_crypto_clk>,
 			 <&clock_gcc clk_gcc_crypto_ahb_clk>,
@@ -1857,9 +1876,13 @@
 		clocks = <&clock_gcc clk_xo_wlan_clk>,
 			 <&clock_gcc clk_rf_clk2>,
 			 <&clock_debug clk_gcc_debug_mux>,
-			 <&clock_gcc clk_wcnss_m_clk>;
+			 <&clock_gcc clk_wcnss_m_clk>,
+			 <&clock_gcc clk_snoc_wcnss_a_clk>;
 
-		clock-names = "xo", "rf_clk", "measure", "wcnss_debug";
+		clock-names = "xo", "rf_clk", "measure", "wcnss_debug",
+				"snoc_wcnss";
+
+		qcom,snoc-wcnss-clock-freq = <200000000>;
 
 		qcom,pc-disable-latency = <80>;
 		qcom,has-autodetect-xo;
