@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1606,7 +1606,7 @@ out_reg:
 		}
 		ret = regulator_disable(ice_dev->reg);
 		if (ret) {
-			pr_err("%s:%pK: Could not disable regulator\n",
+			pr_err("%s:%p: Could not disable regulator\n",
 					__func__, ice_dev);
 			goto out;
 		}
@@ -1660,7 +1660,10 @@ int qcom_ice_setup_ice_hw(const char *storage_type, int enable)
 	struct ice_device *ice_dev = NULL;
 
 	ice_dev = get_ice_device_from_storage_type(storage_type);
-	if (!ice_dev)
+	if (ice_dev == ERR_PTR(-EPROBE_DEFER))
+		return -EPROBE_DEFER;
+
+	if (!ice_dev || (ice_dev->is_ice_enabled == false))
 		return ret;
 
 	if (enable)
