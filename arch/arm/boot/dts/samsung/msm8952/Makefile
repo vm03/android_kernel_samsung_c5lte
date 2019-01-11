@@ -7,18 +7,7 @@ ifeq ($(CONFIG_SEC_J7XLTE_PROJECT),y)
 endif
 
 ifeq ($(CONFIG_SEC_C5LTE_PROJECT),y)
-	ifeq ($(CONFIG_MACH_C5LTE_CHN_OPEN),y)
-		dtb-y += msm8952-sec-c5lte-chn-r02.dtb
-		dtb-y += msm8952-sec-c5lte-chn-r04.dtb
-		dtb-y += msm8952-sec-c5lte-chn-r05.dtb
-		dtb-y += msm8952-sec-c5lte-chn-r06.dtb
-		dtb-y += msm8952-sec-c5lte-chn-r07.dtb
-		dtb-y += msm8952-sec-c5lte-chn-r08.dtb
-		dtb-y += msm8952-sec-c5lte-chn-r09.dtb
-	endif
-	ifeq ($(CONFIG_MACH_C5LTE_CHN_HK),y)
 		dtb-y += msm8952-sec-c5lte-chn-hk-r09.dtb
-	endif
 endif
 
 ifeq ($(CONFIG_SEC_ON5XLTE_PROJECT),y)
