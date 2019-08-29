@@ -140,8 +140,6 @@ int __ipa_generate_rt_hw_rule_v2_5(enum ipa_ip_type ip,
 	u32 tmp[IPA_RT_FLT_HW_RULE_BUF_SIZE/4];
 	u8 *start;
 	int pipe_idx;
-	struct ipa_hdr_entry *hdr_entry;
-	struct ipa_hdr_proc_ctx_entry *hdr_proc_entry;
 
 	if (buf == NULL) {
 		memset(tmp, 0, IPA_RT_FLT_HW_RULE_BUF_SIZE);
@@ -164,24 +162,6 @@ int __ipa_generate_rt_hw_rule_v2_5(enum ipa_ip_type ip,
 		return -EPERM;
 	}
 	rule_hdr->u.hdr_v2_5.pipe_dest_idx = pipe_idx;
-	/* Adding check to confirm still
-	 * header entry present in header table or not
-	*/
-	if (entry->hdr) {
-		hdr_entry = ipa_id_find(entry->rule.hdr_hdl);
-		if (!hdr_entry || hdr_entry->cookie != IPA_HDR_COOKIE) {
-			IPAERR_RL("Header entry already deleted\n");
-			return -EPERM;
-		}
-	} else if (entry->proc_ctx) {
-		hdr_proc_entry = ipa_id_find(entry->rule.hdr_proc_ctx_hdl);
-		if (!hdr_proc_entry ||
-			hdr_proc_entry->cookie != IPA_PROC_HDR_COOKIE) {
-			IPAERR_RL("Proc header entry already deleted\n");
-			return -EINVAL;
-		}
-	}
-
 	if (entry->proc_ctx || (entry->hdr && entry->hdr->is_hdr_proc_ctx)) {
 		struct ipa_hdr_proc_ctx_entry *proc_ctx;
 		proc_ctx = (entry->proc_ctx) ? : entry->hdr->proc_ctx;
@@ -253,7 +233,7 @@ int __ipa_generate_rt_hw_rule_v2_6L(enum ipa_ip_type ip,
  * @hdr_sz: header size
  * @max_rt_idx: maximal index
  *
- * Returns:	0 on success, negative on failure
+ * Returns:	size on success, negative on failure
  *
  * caller needs to hold any needed locks to ensure integrity
  *
@@ -382,7 +362,11 @@ static int ipa_generate_rt_hw_tbl_common(enum ipa_ip_type ip, u8 *base, u8 *hdr,
 					      ((long)body &
 					      IPA_RT_ENTRY_MEMORY_ALLIGNMENT));
 		} else {
-			WARN_ON(tbl->sz == 0);
+			if (tbl->sz == 0) {
+				IPAERR("cannot generate 0 size table\n");
+				goto proc_err;
+			}
+
 			/* allocate memory for the RT tbl */
 			rt_tbl_mem.size = tbl->sz;
 			rt_tbl_mem.base =
@@ -455,8 +439,15 @@ static int ipa_generate_rt_hw_tbl_v1_1(enum ipa_ip_type ip,
 	u8 *base;
 	int max_rt_idx;
 	int i;
+	int res;
 
-	mem->size = ipa_get_rt_hw_tbl_size(ip, &hdr_sz, &max_rt_idx);
+	res = ipa_get_rt_hw_tbl_size(ip, &hdr_sz, &max_rt_idx);
+	if (res < 0) {
+		IPAERR("ipa_get_rt_hw_tbl_size failed %d\n", res);
+		goto error;
+	}
+
+	mem->size = res;
 	mem->size = (mem->size + IPA_RT_TABLE_MEMORY_ALLIGNMENT) &
 				~IPA_RT_TABLE_MEMORY_ALLIGNMENT;
 
@@ -629,6 +620,7 @@ static int ipa_generate_rt_hw_tbl_v2(enum ipa_ip_type ip,
 	int num_index;
 	u32 body_start_offset;
 	u32 apps_start_idx;
+	int res;
 
 	if (ip == IPA_IP_v4) {
 		num_index = IPA_MEM_PART(v4_apps_rt_index_hi) -
@@ -658,7 +650,13 @@ static int ipa_generate_rt_hw_tbl_v2(enum ipa_ip_type ip,
 		entr++;
 	}
 
-	mem->size = ipa_get_rt_hw_tbl_size(ip, &hdr_sz, &max_rt_idx);
+	res = ipa_get_rt_hw_tbl_size(ip, &hdr_sz, &max_rt_idx);
+	if (res < 0) {
+		IPAERR("ipa_get_rt_hw_tbl_size failed %d\n", res);
+		goto base_err;
+	}
+
+	mem->size = res;
 	mem->size -= hdr_sz;
 	mem->size = (mem->size + IPA_RT_TABLE_MEMORY_ALLIGNMENT) &
 				~IPA_RT_TABLE_MEMORY_ALLIGNMENT;
@@ -699,8 +697,8 @@ int __ipa_commit_rt_v2(enum ipa_ip_type ip)
 	struct ipa_desc desc[2];
 	struct ipa_mem_buffer body;
 	struct ipa_mem_buffer head;
-	struct ipa_hw_imm_cmd_dma_shared_mem *cmd1 = NULL;
-	struct ipa_hw_imm_cmd_dma_shared_mem *cmd2 = NULL;
+	struct ipa_hw_imm_cmd_dma_shared_mem cmd1 = {0};
+	struct ipa_hw_imm_cmd_dma_shared_mem cmd2 = {0};
 	u16 avail;
 	u32 num_modem_rt_index;
 	int rc = 0;
@@ -750,52 +748,34 @@ int __ipa_commit_rt_v2(enum ipa_ip_type ip)
 		goto fail_send_cmd;
 	}
 
-	cmd1 = kmalloc(sizeof(struct ipa_hw_imm_cmd_dma_shared_mem),
-		GFP_KERNEL);
-	if (cmd1 == NULL) {
-		IPAERR("Failed to alloc immediate command object\n");
-		rc = -ENOMEM;
-		goto fail_send_cmd;
-	}
-	memset(cmd1, 0, sizeof(struct ipa_hw_imm_cmd_dma_shared_mem));
-
-	cmd1->size = head.size;
-	cmd1->system_addr = head.phys_base;
-	cmd1->local_addr = local_addr1;
+	cmd1.size = head.size;
+	cmd1.system_addr = head.phys_base;
+	cmd1.local_addr = local_addr1;
 	desc[0].opcode = IPA_DMA_SHARED_MEM;
-	desc[0].pyld = (void *)cmd1;
+	desc[0].pyld = &cmd1;
 	desc[0].len = sizeof(struct ipa_hw_imm_cmd_dma_shared_mem);
 	desc[0].type = IPA_IMM_CMD_DESC;
 
 	if (lcl) {
-		cmd2 = kmalloc(sizeof(struct ipa_hw_imm_cmd_dma_shared_mem),
-			GFP_KERNEL);
-		if (cmd1 == NULL) {
-			IPAERR("Failed to alloc immediate command object\n");
-			rc = -ENOMEM;
-			goto fail_send_cmd1;
-		}
-		memset(cmd2, 0, sizeof(struct ipa_hw_imm_cmd_dma_shared_mem));
-
-		cmd2->size = body.size;
-		cmd2->system_addr = body.phys_base;
-		cmd2->local_addr = local_addr2;
+		cmd2.size = body.size;
+		cmd2.system_addr = body.phys_base;
+		cmd2.local_addr = local_addr2;
 
 		desc[1].opcode = IPA_DMA_SHARED_MEM;
-		desc[1].pyld = (void *)cmd2;
+		desc[1].pyld = &cmd2;
 		desc[1].len = sizeof(struct ipa_hw_imm_cmd_dma_shared_mem);
 		desc[1].type = IPA_IMM_CMD_DESC;
 
 		if (ipa_send_cmd(2, desc)) {
 			IPAERR("fail to send immediate command\n");
 			rc = -EFAULT;
-			goto fail_send_cmd2;
+			goto fail_send_cmd;
 		}
 	} else {
 		if (ipa_send_cmd(1, desc)) {
 			IPAERR("fail to send immediate command\n");
 			rc = -EFAULT;
-			goto fail_send_cmd1;
+			goto fail_send_cmd;
 		}
 	}
 
@@ -806,11 +786,6 @@ int __ipa_commit_rt_v2(enum ipa_ip_type ip)
 		IPA_DUMP_BUFF(body.base, body.phys_base, body.size);
 	}
 	__ipa_reap_sys_rt_tbls(ip);
-
-fail_send_cmd2:
-	kfree(cmd2);
-fail_send_cmd1:
-	kfree(cmd1);
 fail_send_cmd:
 	dma_free_coherent(ipa_ctx->pdev, head.size, head.base, head.phys_base);
 	if (body.size)
@@ -931,6 +906,7 @@ static struct ipa_rt_tbl *__ipa_add_rt_tbl(enum ipa_ip_type ip,
 	}
 
 	return entry;
+
 ipa_insert_failed:
 	set->tbl_cnt--;
 	list_del(&entry->link);
@@ -1120,8 +1096,6 @@ int __ipa_del_rt_rule(u32 rule_hdl)
 {
 	struct ipa_rt_entry *entry;
 	int id;
-	struct ipa_hdr_entry *hdr_entry;
-	struct ipa_hdr_proc_ctx_entry *hdr_proc_entry;
 
 	entry = ipa_id_find(rule_hdl);
 
@@ -1135,23 +1109,6 @@ int __ipa_del_rt_rule(u32 rule_hdl)
 		return -EINVAL;
 	}
 
-	/* Adding check to confirm still
-	 * header entry present in header table or not
-	 */
-	if (entry->hdr) {
-		hdr_entry = ipa_id_find(entry->rule.hdr_hdl);
-		if (!hdr_entry || hdr_entry->cookie != IPA_HDR_COOKIE) {
-			IPAERR_RL("Header entry already deleted\n");
-			return -EPERM;
-		}
-	} else if (entry->proc_ctx) {
-		hdr_proc_entry = ipa_id_find(entry->rule.hdr_proc_ctx_hdl);
-		if (!hdr_proc_entry ||
-			hdr_proc_entry->cookie != IPA_PROC_HDR_COOKIE) {
-			IPAERR_RL("Proc header entry already deleted\n");
-			return -EINVAL;
-		}
-	}
 	if (entry->hdr)
 		__ipa_release_hdr(entry->hdr->id);
 	else if (entry->proc_ctx)
@@ -1468,7 +1425,6 @@ static int __ipa_mdfy_rt_rule(struct ipa_rt_rule_mdfy *rtrule)
 {
 	struct ipa_rt_entry *entry;
 	struct ipa_hdr_entry *hdr = NULL;
-	struct ipa_hdr_entry *hdr_entry;
 
 	if (rtrule->rule.hdr_hdl) {
 		hdr = ipa_id_find(rtrule->rule.hdr_hdl);
@@ -1489,16 +1445,6 @@ static int __ipa_mdfy_rt_rule(struct ipa_rt_rule_mdfy *rtrule)
 		goto error;
 	}
 
-	/* Adding check to confirm still
-	 * header entry present in header table or not
-	 */
-	if (entry->hdr) {
-		hdr_entry = ipa_id_find(entry->rule.hdr_hdl);
-		if (!hdr_entry || hdr_entry->cookie != IPA_HDR_COOKIE) {
-			IPAERR_RL("Header entry already deleted\n");
-			return -EPERM;
-		}
-	}
 	if (entry->hdr)
 		entry->hdr->ref_cnt--;
 
